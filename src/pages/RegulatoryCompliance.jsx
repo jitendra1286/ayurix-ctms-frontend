@@ -1,971 +1,1219 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react";
 import {
-  Search,
-  Plus,
   ShieldCheck,
+  Plus,
+  Search,
+  Eye,
+  Trash2,
+  X,
   FileCheck2,
-  CheckCircle2,
   Clock3,
   AlertTriangle,
-  XCircle,
-  ExternalLink,
+  CheckCircle2,
   CalendarDays,
-  FileText,
-  ClipboardCheck,
-  MoreHorizontal,
-  Eye,
-} from "lucide-react"
+  ExternalLink,
+} from "lucide-react";
 
-const regulatoryRecords = [
-  {
-    id: "REG-001",
-    trialId: "TRIAL-001",
-    trialTitle: "Ayurvedic Intervention for Type 2 Diabetes",
-    regulatoryBody: "CTRI",
-    registrationNo: "CTRI/2026/04/045678",
-    submissionDate: "10 Apr 2026",
-    approvalDate: "18 Apr 2026",
-    expiryDate: "18 Apr 2028",
-    status: "Registered",
-    compliance: 100,
-    reviewer: "Regulatory Team",
-    documents: 8,
-    priority: "High",
-  },
-  {
-    id: "REG-002",
-    trialId: "TRIAL-002",
-    trialTitle: "Ayurvedic Therapy for Chronic Arthritis",
-    regulatoryBody: "CDSCO / NDCT",
-    registrationNo: "CT-2026-00214",
-    submissionDate: "22 May 2026",
-    approvalDate: "05 Jun 2026",
-    expiryDate: "05 Jun 2028",
-    status: "Approved",
-    compliance: 100,
-    reviewer: "Regulatory Team",
-    documents: 10,
-    priority: "High",
-  },
-  {
-    id: "REG-003",
-    trialId: "TRIAL-003",
-    trialTitle: "Herbal Support in Migraine Management",
-    regulatoryBody: "CTRI",
-    registrationNo: "-",
-    submissionDate: "20 Aug 2026",
-    approvalDate: "-",
-    expiryDate: "-",
-    status: "Pending Submission",
-    compliance: 65,
-    reviewer: "Dr. Kavita Singh",
-    documents: 6,
-    priority: "High",
-  },
-  {
-    id: "REG-004",
-    trialId: "TRIAL-004",
-    trialTitle: "Ayurvedic Formulation for Skin Disorders",
-    regulatoryBody: "CDSCO / NDCT",
-    registrationNo: "CT-2026-00492",
-    submissionDate: "12 Aug 2026",
-    approvalDate: "-",
-    expiryDate: "-",
-    status: "Under Review",
-    compliance: 82,
-    reviewer: "Regulatory Team",
-    documents: 7,
-    priority: "Medium",
-  },
-  {
-    id: "REG-005",
-    trialId: "TRIAL-005",
-    trialTitle: "Ayurvedic Lifestyle Intervention Study",
-    regulatoryBody: "CTRI",
-    registrationNo: "CTRI/2026/05/056781",
-    submissionDate: "04 May 2026",
-    approvalDate: "12 May 2026",
-    expiryDate: "12 May 2028",
-    status: "Registered",
-    compliance: 96,
-    reviewer: "Regulatory Team",
-    documents: 9,
-    priority: "Medium",
-  },
-  {
-    id: "REG-006",
-    trialId: "TRIAL-006",
-    trialTitle: "Ayurvedic Treatment for Sleep Disorders",
-    regulatoryBody: "CDSCO / NDCT",
-    registrationNo: "-",
-    submissionDate: "30 Aug 2026",
-    approvalDate: "-",
-    expiryDate: "-",
-    status: "Action Required",
-    compliance: 48,
-    reviewer: "Not Assigned",
-    documents: 4,
-    priority: "High",
-  },
-  {
-    id: "REG-007",
-    trialId: "TRIAL-007",
-    trialTitle: "Herbal Intervention for Digestive Health",
-    regulatoryBody: "CTRI",
-    registrationNo: "CTRI/2026/06/062314",
-    submissionDate: "15 Jun 2026",
-    approvalDate: "25 Jun 2026",
-    expiryDate: "25 Jun 2028",
-    status: "Registered",
-    compliance: 91,
-    reviewer: "Regulatory Team",
-    documents: 8,
-    priority: "Low",
-  },
-]
+import api from "../services/api";
 
-const complianceItems = [
-  {
-    title: "CTRI Registration",
-    description: "Clinical trial registration status",
-    status: "Completed",
-  },
-  {
-    title: "Ethics Committee Approval",
-    description: "IEC approval linked with trial",
-    status: "Completed",
-  },
-  {
-    title: "Protocol Documentation",
-    description: "Approved protocol and amendments",
-    status: "Completed",
-  },
-  {
-    title: "Informed Consent",
-    description: "Participant consent documentation",
-    status: "Completed",
-  },
-  {
-    title: "Regulatory Documents",
-    description: "Required regulatory submissions",
-    status: "Pending",
-  },
-  {
-    title: "Safety Reporting",
-    description: "Adverse event and SAE tracking",
-    status: "Pending",
-  },
-]
+const STATUS_OPTIONS = [
+  "All",
+  "Pending",
+  "Submitted",
+  "Under Review",
+  "Approved",
+  "Rejected",
+  "Expired",
+];
 
-function StatusBadge({ status }) {
-  const config = {
-    Registered: {
-      className: "bg-emerald-50 text-emerald-700",
-      icon: CheckCircle2,
-    },
-    Approved: {
-      className: "bg-emerald-50 text-emerald-700",
-      icon: CheckCircle2,
-    },
-    "Pending Submission": {
-      className: "bg-amber-50 text-amber-700",
-      icon: Clock3,
-    },
-    "Under Review": {
-      className: "bg-blue-50 text-blue-700",
-      icon: ClipboardCheck,
-    },
-    "Action Required": {
-      className: "bg-red-50 text-red-700",
-      icon: AlertTriangle,
-    },
+const SUBMISSION_TYPES = [
+  "CTRI Registration",
+  "CTRI Update",
+  "NDCT Compliance",
+  "Regulatory Approval",
+  "Amendment",
+  "Annual Update",
+  "Other",
+];
+
+const NDCT_OPTIONS = [
+  "Pending",
+  "Compliant",
+  "Non-Compliant",
+];
+
+const AUTHORITY_OPTIONS = [
+  "CTRI",
+  "AYUSH",
+  "CDSCO",
+  "DCGI",
+  "Other",
+];
+
+const initialForm = {
+  trial_id: "",
+  regulatory_authority: "CTRI",
+  submission_type: "CTRI Registration",
+  submission_date: "",
+  approval_date: "",
+  expiry_date: "",
+  status: "PENDING",
+  reference_number: "",
+  ndct_compliance: "PENDING",
+  remarks: "",
+};
+
+function formatDisplayDate(date) {
+  if (!date) return "-";
+
+  const d = new Date(date);
+
+  if (Number.isNaN(d.getTime())) {
+    return date;
   }
 
-  const current = config[status] || config["Pending Submission"]
-  const Icon = current.icon
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${current.className}`}
-    >
-      <Icon size={13} />
-      {status}
-    </span>
-  )
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
-function PriorityBadge({ priority }) {
-  const config = {
-    High: "bg-red-50 text-red-700",
-    Medium: "bg-amber-50 text-amber-700",
-    Low: "bg-slate-100 text-slate-600",
+function getStatusClass(status) {
+  switch (status) {
+    case "Approved":
+      return "bg-emerald-100 text-emerald-700";
+
+    case "Submitted":
+      return "bg-blue-100 text-blue-700";
+
+    case "Under Review":
+      return "bg-amber-100 text-amber-700";
+
+    case "Rejected":
+      return "bg-red-100 text-red-700";
+
+    case "Expired":
+      return "bg-slate-200 text-slate-700";
+
+    default:
+      return "bg-purple-100 text-purple-700";
+  }
+}
+
+function getPriorityClass(status) {
+  if (status === "Compliant") {
+    return "bg-emerald-100 text-emerald-700";
   }
 
-  return (
-    <span
-      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-        config[priority] || config.Low
-      }`}
-    >
-      {priority}
-    </span>
-  )
+  if (status === "Non-Compliant") {
+    return "bg-red-100 text-red-700";
+  }
+
+  return "bg-amber-100 text-amber-700";
 }
 
-function RegulatoryCompliance() {
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("All")
+function toBackendStatus(status) {
+  const statusMap = {
+    Pending: "PENDING",
+    Submitted: "SUBMITTED",
+    "Under Review": "UNDER_REVIEW",
+    Approved: "APPROVED",
+    Rejected: "REJECTED",
+    Expired: "EXPIRED",
+  };
+
+  return statusMap[status] || status;
+}
+
+function toBackendNdct(status) {
+  const statusMap = {
+    Pending: "PENDING",
+    Compliant: "COMPLIANT",
+    "Non-Compliant": "NON_COMPLIANT",
+  };
+
+  return statusMap[status] || status;
+}
+
+export default function RegulatoryCompliance() {
+  const [records, setRecords] = useState([]);
+  const [trials, setTrials] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+
+  const [selectedRecord, setSelectedRecord] = useState(null);
+
+  const [form, setForm] = useState(initialForm);
+
+  const [saving, setSaving] = useState(false);
+
+  /* =========================================================
+     FETCH REGULATORY RECORDS
+  ========================================================= */
+
+  const fetchRecords = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await api.get("/regulatory");
+
+      setRecords(response.data.records || []);
+    } catch (err) {
+      console.error("Fetch Regulatory Records Error:", err);
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to load regulatory records"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================================================
+     FETCH TRIALS
+  ========================================================= */
+
+  const fetchTrials = async () => {
+    try {
+      const response = await api.get("/trials");
+
+      setTrials(response.data.trials || []);
+    } catch (err) {
+      console.error("Fetch Trials Error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecords();
+    fetchTrials();
+  }, []);
+
+  /* =========================================================
+     FILTER RECORDS
+  ========================================================= */
 
   const filteredRecords = useMemo(() => {
-    return regulatoryRecords.filter((record) => {
-      const searchText = search.toLowerCase()
+    return records.filter((record) => {
+      const searchText = search.toLowerCase();
 
       const matchesSearch =
-        record.id.toLowerCase().includes(searchText) ||
-        record.trialId.toLowerCase().includes(searchText) ||
-        record.trialTitle.toLowerCase().includes(searchText) ||
-        record.regulatoryBody.toLowerCase().includes(searchText) ||
-        record.registrationNo.toLowerCase().includes(searchText)
+        record.id?.toLowerCase().includes(searchText) ||
+        record.trialId?.toLowerCase().includes(searchText) ||
+        record.trialTitle?.toLowerCase().includes(searchText) ||
+        record.authority?.toLowerCase().includes(searchText) ||
+        record.submissionType
+          ?.toLowerCase()
+          .includes(searchText) ||
+        record.referenceNumber
+          ?.toLowerCase()
+          .includes(searchText);
 
       const matchesStatus =
         statusFilter === "All" ||
-        record.status === statusFilter
+        record.status === statusFilter;
 
-      return matchesSearch && matchesStatus
-    })
-  }, [search, statusFilter])
+      return matchesSearch && matchesStatus;
+    });
+  }, [records, search, statusFilter]);
 
-  const totalRecords = regulatoryRecords.length
+  /* =========================================================
+     STATS
+  ========================================================= */
 
-  const registered = regulatoryRecords.filter(
-    (record) =>
-      record.status === "Registered" ||
-      record.status === "Approved"
-  ).length
+  const stats = useMemo(() => {
+    const total = records.length;
 
-  const underReview = regulatoryRecords.filter(
-    (record) => record.status === "Under Review"
-  ).length
+    const approved = records.filter(
+      (item) => item.status === "Approved"
+    ).length;
 
-  const pending = regulatoryRecords.filter(
-    (record) => record.status === "Pending Submission"
-  ).length
+    const underReview = records.filter(
+      (item) => item.status === "Under Review"
+    ).length;
 
-  const actionRequired = regulatoryRecords.filter(
-    (record) => record.status === "Action Required"
-  ).length
+    const pending = records.filter(
+      (item) =>
+        item.status === "Pending" ||
+        item.status === "Submitted"
+    ).length;
 
-  const averageCompliance = Math.round(
-    regulatoryRecords.reduce(
-      (sum, record) => sum + record.compliance,
-      0
-    ) / regulatoryRecords.length
-  )
+    const expired = records.filter(
+      (item) => item.status === "Expired"
+    ).length;
+
+    const compliant = records.filter(
+      (item) => item.ndctCompliance === "Compliant"
+    ).length;
+
+    return {
+      total,
+      approved,
+      underReview,
+      pending,
+      expired,
+      compliant,
+    };
+  }, [records]);
+
+  /* =========================================================
+     FORM CHANGE
+  ========================================================= */
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  /* =========================================================
+     CREATE RECORD
+  ========================================================= */
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!form.trial_id) {
+      alert("Please select a trial.");
+      return;
+    }
+
+    if (!form.submission_type) {
+      alert("Please select submission type.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await api.post("/regulatory", {
+        trial_id: Number(form.trial_id),
+
+        regulatory_authority:
+          form.regulatory_authority,
+
+        submission_type:
+          form.submission_type,
+
+        submission_date:
+          form.submission_date || null,
+
+        approval_date:
+          form.approval_date || null,
+
+        expiry_date:
+          form.expiry_date || null,
+
+        status: form.status,
+
+        reference_number:
+          form.reference_number || null,
+
+        ndct_compliance:
+          form.ndct_compliance,
+
+        remarks: form.remarks || null,
+      });
+
+      alert(
+        "Regulatory record created successfully."
+      );
+
+      setForm(initialForm);
+
+      setShowModal(false);
+
+      await fetchRecords();
+    } catch (err) {
+      console.error(
+        "Create Regulatory Record Error:",
+        err
+      );
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to create regulatory record."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* =========================================================
+     VIEW RECORD
+  ========================================================= */
+
+  const handleView = async (record) => {
+    try {
+      const databaseId =
+        record.databaseId || record.id;
+
+      const response = await api.get(
+        `/regulatory/${databaseId}`
+      );
+
+      setSelectedRecord({
+        ...record,
+        ...response.data.record,
+      });
+
+      setShowViewModal(true);
+    } catch (err) {
+      console.error(
+        "View Regulatory Record Error:",
+        err
+      );
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to load regulatory record."
+      );
+    }
+  };
+
+  /* =========================================================
+     DELETE RECORD
+  ========================================================= */
+
+  const handleDelete = async (record) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${record.id}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const databaseId =
+        record.databaseId || record.id;
+
+      await api.delete(
+        `/regulatory/${databaseId}`
+      );
+
+      alert(
+        "Regulatory record deleted successfully."
+      );
+
+      await fetchRecords();
+    } catch (err) {
+      console.error(
+        "Delete Regulatory Record Error:",
+        err
+      );
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to delete regulatory record."
+      );
+    }
+  };
+
+  /* =========================================================
+     OPEN CREATE MODAL
+  ========================================================= */
+
+  const openCreateModal = () => {
+    setForm(initialForm);
+    setShowModal(true);
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6">
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
-      {/* HEADER */}
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-
-            <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
-              <ShieldCheck size={22} />
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-blue-100 p-3">
+              <ShieldCheck
+                size={28}
+                className="text-blue-600"
+              />
             </div>
 
-            <h1 className="text-2xl font-bold text-slate-900">
-              Regulatory Compliance
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">
+                Regulatory Compliance
+              </h1>
 
+              <p className="text-sm text-slate-500">
+                CTRI, NDCT and regulatory compliance
+                tracking
+              </p>
+            </div>
           </div>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Track CTRI registration, regulatory submissions and
-            NDCT compliance for clinical trials.
-          </p>
         </div>
 
-        <button className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700">
-          <Plus size={18} />
+        <button
+          onClick={openCreateModal}
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700"
+        >
+          <Plus size={19} />
           New Regulatory Record
         </button>
-
       </div>
 
-      {/* STATS */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-              <p className="text-sm text-slate-500">
-                Total Records
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {totalRecords}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-indigo-50 p-3 text-indigo-600">
-              <FileText size={22} />
-            </div>
-
-          </div>
-
+      {error && (
+        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
+      )}
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* =====================================================
+          STATS
+      ===================================================== */}
 
-          <div className="flex items-center justify-between">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          title="Total Records"
+          value={stats.total}
+          icon={<FileCheck2 size={22} />}
+          iconBg="bg-blue-100"
+          iconColor="text-blue-600"
+        />
 
-            <div>
-              <p className="text-sm text-slate-500">
-                Registered / Approved
-              </p>
+        <StatCard
+          title="Approved"
+          value={stats.approved}
+          icon={<CheckCircle2 size={22} />}
+          iconBg="bg-emerald-100"
+          iconColor="text-emerald-600"
+        />
 
-              <p className="mt-2 text-3xl font-bold text-emerald-600">
-                {registered}
-              </p>
-            </div>
+        <StatCard
+          title="Under Review"
+          value={stats.underReview}
+          icon={<Clock3 size={22} />}
+          iconBg="bg-amber-100"
+          iconColor="text-amber-600"
+        />
 
-            <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
-              <CheckCircle2 size={22} />
-            </div>
+        <StatCard
+          title="Pending"
+          value={stats.pending}
+          icon={<AlertTriangle size={22} />}
+          iconBg="bg-purple-100"
+          iconColor="text-purple-600"
+        />
 
-          </div>
-
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-              <p className="text-sm text-slate-500">
-                Under Review
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-blue-600">
-                {underReview}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
-              <ClipboardCheck size={22} />
-            </div>
-
-          </div>
-
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-              <p className="text-sm text-slate-500">
-                Pending Submission
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-amber-600">
-                {pending}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-amber-50 p-3 text-amber-600">
-              <Clock3 size={22} />
-            </div>
-
-          </div>
-
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-              <p className="text-sm text-slate-500">
-                Action Required
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-red-600">
-                {actionRequired}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-red-50 p-3 text-red-600">
-              <AlertTriangle size={22} />
-            </div>
-
-          </div>
-
-        </div>
-
+        <StatCard
+          title="NDCT Compliant"
+          value={stats.compliant}
+          icon={<ShieldCheck size={22} />}
+          iconBg="bg-green-100"
+          iconColor="text-green-600"
+        />
       </div>
 
-      {/* COMPLIANCE SCORE */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* =====================================================
+          SEARCH + FILTER
+      ===================================================== */}
 
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-
-          <div>
-
-            <h2 className="font-semibold text-slate-900">
-              Regulatory Compliance Score
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Overall compliance status across active clinical trials.
-            </p>
-
-          </div>
-
-          <div className="text-right">
-
-            <p className="text-3xl font-bold text-indigo-600">
-              {averageCompliance}%
-            </p>
-
-            <p className="text-xs text-slate-500">
-              Overall compliance
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
-
-          <div
-            className="h-full rounded-full bg-indigo-600 transition-all"
-            style={{
-              width: `${averageCompliance}%`,
-            }}
-          />
-
-        </div>
-
-        <div className="mt-3 flex justify-between text-xs text-slate-500">
-
-          <span>
-            Compliance tracking active
-          </span>
-
-          <span>
-            Target: 100%
-          </span>
-
-        </div>
-
-      </div>
-
-      {/* REGULATORY CHECKLIST */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-        <div>
-
-          <h2 className="font-semibold text-slate-900">
-            Regulatory Compliance Checklist
-          </h2>
-
-          <p className="mt-1 text-xs text-slate-500">
-            Monitor important compliance areas for each clinical trial.
-          </p>
-
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-
-          {complianceItems.map((item) => {
-
-            const completed = item.status === "Completed"
-
-            return (
-              <div
-                key={item.title}
-                className="rounded-lg border border-slate-100 bg-slate-50 p-4"
-              >
-
-                <div className="flex items-start gap-3">
-
-                  <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                      completed
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-amber-50 text-amber-600"
-                    }`}
-                  >
-                    {completed ? (
-                      <CheckCircle2 size={18} />
-                    ) : (
-                      <Clock3 size={18} />
-                    )}
-                  </div>
-
-                  <div className="min-w-0">
-
-                    <div className="flex items-center justify-between gap-2">
-
-                      <p className="text-sm font-semibold text-slate-800">
-                        {item.title}
-                      </p>
-
-                      <span
-                        className={`text-[11px] font-semibold ${
-                          completed
-                            ? "text-emerald-600"
-                            : "text-amber-600"
-                        }`}
-                      >
-                        {item.status}
-                      </span>
-
-                    </div>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {item.description}
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
-            )
-          })}
-
-        </div>
-
-      </div>
-
-      {/* SEARCH */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
+      <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row">
-
           <div className="relative flex-1">
-
             <Search
-              size={18}
+              size={19}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
             />
 
             <input
               type="text"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search trial, registration number or regulatory body..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-500 focus:bg-white"
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              placeholder="Search by compliance ID, trial, authority, reference..."
+              className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-
           </div>
 
           <select
             value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value)
+            onChange={(e) =>
+              setStatusFilter(e.target.value)
             }
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
           >
-
-            <option value="All">
-              All Status
-            </option>
-
-            <option value="Registered">
-              Registered
-            </option>
-
-            <option value="Approved">
-              Approved
-            </option>
-
-            <option value="Pending Submission">
-              Pending Submission
-            </option>
-
-            <option value="Under Review">
-              Under Review
-            </option>
-
-            <option value="Action Required">
-              Action Required
-            </option>
-
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
           </select>
-
         </div>
-
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* =====================================================
+          TABLE
+      ===================================================== */}
 
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-
-          <div>
-
-            <h2 className="font-semibold text-slate-900">
-              Regulatory Records
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              {filteredRecords.length} record(s) found
-            </p>
-
-          </div>
-
-        </div>
-
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-
-          <table className="w-full min-w-[1400px] text-left">
-
+          <table className="w-full min-w-[1100px]">
             <thead className="bg-slate-50">
-
-              <tr className="border-b border-slate-200">
-
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Record
-                </th>
-
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Clinical Trial
-                </th>
-
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Regulatory Body
-                </th>
-
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Registration No.
-                </th>
-
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Submission
-                </th>
-
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="px-5 py-4">
                   Compliance
                 </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Priority
+                <th className="px-5 py-4">
+                  Trial
                 </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-5 py-4">
+                  Authority
+                </th>
+
+                <th className="px-5 py-4">
+                  Submission
+                </th>
+
+                <th className="px-5 py-4">
+                  Submission Date
+                </th>
+
+                <th className="px-5 py-4">
+                  NDCT
+                </th>
+
+                <th className="px-5 py-4">
                   Status
                 </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Action
+                <th className="px-5 py-4 text-right">
+                  Actions
                 </th>
-
               </tr>
-
             </thead>
 
-            <tbody className="divide-y divide-slate-100">
-
-              {filteredRecords.map((record) => (
-
-                <tr
-                  key={record.id}
-                  className="transition hover:bg-slate-50"
-                >
-
-                  {/* RECORD */}
-                  <td className="px-5 py-4">
-
-                    <p className="text-xs font-semibold text-indigo-600">
-                      {record.id}
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-slate-900">
-                      {record.submissionDate}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {record.documents} documents
-                    </p>
-
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan="8"
+                    className="px-5 py-12 text-center text-sm text-slate-500"
+                  >
+                    Loading regulatory records...
                   </td>
-
-                  {/* TRIAL */}
-                  <td className="max-w-[280px] px-5 py-4">
-
-                    <p className="text-xs font-semibold text-blue-600">
-                      {record.trialId}
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-slate-800">
-                      {record.trialTitle}
-                    </p>
-
-                  </td>
-
-                  {/* BODY */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-2">
-
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                        <ShieldCheck size={16} />
-                      </div>
-
-                      <span className="text-sm font-medium text-slate-700">
-                        {record.regulatoryBody}
-                      </span>
-
-                    </div>
-
-                  </td>
-
-                  {/* REGISTRATION */}
-                  <td className="px-5 py-4">
-
-                    {record.registrationNo !== "-" ? (
-                      <div className="flex items-center gap-2">
-
-                        <span className="text-sm font-medium text-slate-700">
-                          {record.registrationNo}
-                        </span>
-
-                        <ExternalLink
-                          size={14}
-                          className="text-indigo-500"
-                        />
-
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-400">
-                        Not available
-                      </span>
-                    )}
-
-                  </td>
-
-                  {/* SUBMISSION */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-2">
-
-                      <CalendarDays
-                        size={15}
-                        className="text-slate-400"
+                </tr>
+              ) : filteredRecords.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="8"
+                    className="px-5 py-12 text-center"
+                  >
+                    <div className="flex flex-col items-center">
+                      <ShieldCheck
+                        size={42}
+                        className="mb-3 text-slate-300"
                       />
 
-                      <div>
+                      <p className="font-medium text-slate-600">
+                        No regulatory records found
+                      </p>
 
-                        <p className="text-sm text-slate-700">
-                          {record.submissionDate}
-                        </p>
-
-                        <p className="mt-1 text-xs text-slate-400">
-                          Approval: {record.approvalDate}
-                        </p>
-
-                      </div>
-
+                      <p className="mt-1 text-sm text-slate-400">
+                        Create your first regulatory
+                        compliance record.
+                      </p>
                     </div>
-
                   </td>
-
-                  {/* COMPLIANCE */}
-                  <td className="px-5 py-4">
-
-                    <div className="w-32">
-
-                      <div className="mb-1 flex justify-between text-xs">
-
-                        <span className="font-semibold text-slate-700">
-                          {record.compliance}%
-                        </span>
-
-                      </div>
-
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            record.compliance >= 90
-                              ? "bg-emerald-500"
-                              : record.compliance >= 70
-                              ? "bg-blue-500"
-                              : "bg-amber-500"
-                          }`}
-                          style={{
-                            width: `${record.compliance}%`,
-                          }}
-                        />
-
-                      </div>
-
-                    </div>
-
-                  </td>
-
-                  {/* PRIORITY */}
-                  <td className="px-5 py-4">
-
-                    <PriorityBadge
-                      priority={record.priority}
-                    />
-
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="px-5 py-4">
-
-                    <StatusBadge
-                      status={record.status}
-                    />
-
-                  </td>
-
-                  {/* ACTION */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-1">
-
-                      <button
-                        title="View Regulatory Record"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600"
-                      >
-                        <Eye size={17} />
-                      </button>
-
-                      <button
-                        title="More Actions"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
-                      >
-                        <MoreHorizontal size={17} />
-                      </button>
-
-                    </div>
-
-                  </td>
-
                 </tr>
+              ) : (
+                filteredRecords.map((record) => (
+                  <tr
+                    key={
+                      record.databaseId || record.id
+                    }
+                    className="border-b border-slate-100 transition hover:bg-slate-50"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="font-semibold text-slate-800">
+                        {record.id}
+                      </div>
 
-              ))}
+                      <div className="mt-1 text-xs text-slate-400">
+                        {record.referenceNumber !==
+                        "-"
+                          ? record.referenceNumber
+                          : "No reference number"}
+                      </div>
+                    </td>
 
+                    <td className="px-5 py-4">
+                      <div className="font-medium text-slate-700">
+                        {record.trialId}
+                      </div>
+
+                      <div className="mt-1 max-w-[220px] truncate text-xs text-slate-400">
+                        {record.trialTitle}
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-600">
+                      {record.authority}
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-600">
+                      {record.submissionType}
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-600">
+                      {formatDisplayDate(
+                        record.submissionDate
+                      )}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getPriorityClass(
+                          record.ndctCompliance
+                        )}`}
+                      >
+                        {record.ndctCompliance}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
+                          record.status
+                        )}`}
+                      >
+                        {record.status}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() =>
+                            handleView(record)
+                          }
+                          title="View"
+                          className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          <Eye size={17} />
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleDelete(record)
+                          }
+                          title="Delete"
+                          className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
-
           </table>
-
         </div>
-
-        {filteredRecords.length === 0 && (
-
-          <div className="px-6 py-16 text-center">
-
-            <ShieldCheck
-              size={40}
-              className="mx-auto text-slate-300"
-            />
-
-            <h3 className="mt-3 font-semibold text-slate-900">
-              No regulatory records found
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Try changing your search or status filter.
-            </p>
-
-          </div>
-
-        )}
-
       </div>
 
-      {/* NDCT INFORMATION */}
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5">
+      {/* =====================================================
+          CREATE MODAL
+      ===================================================== */}
 
-        <div className="flex items-start gap-3">
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  New Regulatory Record
+                </h2>
 
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600">
-            <FileCheck2 size={20} />
+                <p className="text-sm text-slate-500">
+                  Add CTRI / NDCT compliance information
+                </p>
+              </div>
+
+              <button
+                onClick={() =>
+                  setShowModal(false)
+                }
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5 p-6"
+            >
+              {/* Trial */}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Clinical Trial *
+                </label>
+
+                <select
+                  name="trial_id"
+                  value={form.trial_id}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">
+                    Select Clinical Trial
+                  </option>
+
+                  {trials.map((trial) => (
+                    <option
+                      key={trial.id}
+                      value={trial.id}
+                    >
+                      {trial.protocol_number
+                        ? `${trial.protocol_number} - `
+                        : ""}
+                      {trial.title}
+                    </option>
+                  ))}
+                </select>
+
+                {trials.length === 0 && (
+                  <p className="mt-2 text-xs text-amber-600">
+                    No clinical trials available.
+                    Create a trial first.
+                  </p>
+                )}
+              </div>
+
+              {/* Authority + Submission Type */}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormSelect
+                  label="Regulatory Authority"
+                  name="regulatory_authority"
+                  value={
+                    form.regulatory_authority
+                  }
+                  onChange={handleChange}
+                  options={AUTHORITY_OPTIONS}
+                />
+
+                <FormSelect
+                  label="Submission Type"
+                  name="submission_type"
+                  value={form.submission_type}
+                  onChange={handleChange}
+                  options={SUBMISSION_TYPES}
+                />
+              </div>
+
+              {/* Dates */}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <FormInput
+                  label="Submission Date"
+                  name="submission_date"
+                  type="date"
+                  value={form.submission_date}
+                  onChange={handleChange}
+                />
+
+                <FormInput
+                  label="Approval Date"
+                  name="approval_date"
+                  type="date"
+                  value={form.approval_date}
+                  onChange={handleChange}
+                />
+
+                <FormInput
+                  label="Expiry Date"
+                  name="expiry_date"
+                  type="date"
+                  value={form.expiry_date}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Status + NDCT */}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormSelect
+                  label="Status"
+                  name="status"
+                  value={form.status}
+                  onChange={handleChange}
+                  options={[
+                    "PENDING",
+                    "SUBMITTED",
+                    "UNDER_REVIEW",
+                    "APPROVED",
+                    "REJECTED",
+                    "EXPIRED",
+                  ]}
+                  displayMap={{
+                    PENDING: "Pending",
+                    SUBMITTED: "Submitted",
+                    UNDER_REVIEW: "Under Review",
+                    APPROVED: "Approved",
+                    REJECTED: "Rejected",
+                    EXPIRED: "Expired",
+                  }}
+                />
+
+                <FormSelect
+                  label="NDCT Compliance"
+                  name="ndct_compliance"
+                  value={
+                    form.ndct_compliance
+                  }
+                  onChange={handleChange}
+                  options={[
+                    "PENDING",
+                    "COMPLIANT",
+                    "NON_COMPLIANT",
+                  ]}
+                  displayMap={{
+                    PENDING: "Pending",
+                    COMPLIANT: "Compliant",
+                    NON_COMPLIANT: "Non-Compliant",
+                  }}
+                />
+              </div>
+
+              {/* Reference Number */}
+
+              <FormInput
+                label="Reference Number"
+                name="reference_number"
+                type="text"
+                placeholder="e.g. CTRI/2026/00123"
+                value={form.reference_number}
+                onChange={handleChange}
+              />
+
+              {/* Remarks */}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Remarks
+                </label>
+
+                <textarea
+                  name="remarks"
+                  value={form.remarks}
+                  onChange={handleChange}
+                  rows="4"
+                  placeholder="Enter additional compliance remarks..."
+                  className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* Buttons */}
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowModal(false)
+                  }
+                  className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving
+                    ? "Saving..."
+                    : "Create Record"}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <div>
-
-            <h3 className="font-semibold text-indigo-900">
-              NDCT Rules 2019 Compliance
-            </h3>
-
-            <p className="mt-1 text-sm text-indigo-700">
-              The system maintains regulatory documentation,
-              submission status, approval records and compliance
-              checkpoints for clinical trials.
-            </p>
-
-          </div>
-
         </div>
+      )}
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+      {/* =====================================================
+          VIEW MODAL
+      ===================================================== */}
 
-          <div className="rounded-lg bg-white p-4">
+      {showViewModal && selectedRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  {selectedRecord.id}
+                </h2>
 
-            <p className="text-xs font-medium text-slate-500">
-              CTRI
-            </p>
+                <p className="text-sm text-slate-500">
+                  Regulatory Compliance Details
+                </p>
+              </div>
 
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              Registration Tracking
-            </p>
+              <button
+                onClick={() =>
+                  setShowViewModal(false)
+                }
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-            <p className="mt-1 text-xs text-slate-500">
-              Track registration number, submission and status.
-            </p>
+            <div className="space-y-6 p-6">
+              {/* Status */}
 
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
+                    selectedRecord.status
+                  )}`}
+                >
+                  {selectedRecord.status}
+                </span>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${getPriorityClass(
+                    selectedRecord.ndctCompliance
+                  )}`}
+                >
+                  NDCT:{" "}
+                  {selectedRecord.ndctCompliance}
+                </span>
+              </div>
+
+              {/* Main Details */}
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <DetailItem
+                  label="Trial"
+                  value={
+                    selectedRecord.trialId
+                  }
+                />
+
+                <DetailItem
+                  label="Trial Title"
+                  value={
+                    selectedRecord.trialTitle
+                  }
+                />
+
+                <DetailItem
+                  label="Regulatory Authority"
+                  value={
+                    selectedRecord.authority
+                  }
+                />
+
+                <DetailItem
+                  label="Submission Type"
+                  value={
+                    selectedRecord.submissionType
+                  }
+                />
+
+                <DetailItem
+                  label="Reference Number"
+                  value={
+                    selectedRecord.referenceNumber
+                  }
+                />
+
+                <DetailItem
+                  label="Submission Date"
+                  value={formatDisplayDate(
+                    selectedRecord.submissionDate
+                  )}
+                />
+
+                <DetailItem
+                  label="Approval Date"
+                  value={formatDisplayDate(
+                    selectedRecord.approvalDate
+                  )}
+                />
+
+                <DetailItem
+                  label="Expiry Date"
+                  value={formatDisplayDate(
+                    selectedRecord.expiryDate
+                  )}
+                />
+              </div>
+
+              {/* Remarks */}
+
+              <div>
+                <h3 className="mb-2 flex items-center gap-2 font-semibold text-slate-800">
+                  <CalendarDays
+                    size={18}
+                    className="text-blue-600"
+                  />
+                  Remarks
+                </h3>
+
+                <div className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                  {selectedRecord.remarks ||
+                    "No remarks added."}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-slate-200 px-6 py-4">
+              <button
+                onClick={() =>
+                  setShowViewModal(false)
+                }
+                className="rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-900"
+              >
+                Close
+              </button>
+            </div>
           </div>
-
-          <div className="rounded-lg bg-white p-4">
-
-            <p className="text-xs font-medium text-slate-500">
-              NDCT 2019
-            </p>
-
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              Regulatory Checklist
-            </p>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Maintain required regulatory documents and workflow.
-            </p>
-
-          </div>
-
-          <div className="rounded-lg bg-white p-4">
-
-            <p className="text-xs font-medium text-slate-500">
-              Audit Readiness
-            </p>
-
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              Document & Status History
-            </p>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Keep submission and approval activities traceable.
-            </p>
-
-          </div>
-
         </div>
-
-      </div>
-
+      )}
     </div>
-  )
+  );
 }
 
-export default RegulatoryCompliance
+/* =========================================================
+   STAT CARD
+========================================================= */
+
+function StatCard({
+  title,
+  value,
+  icon,
+  iconBg,
+  iconColor,
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {title}
+          </p>
+
+          <p className="mt-2 text-2xl font-bold text-slate-800">
+            {value}
+          </p>
+        </div>
+
+        <div
+          className={`rounded-xl p-3 ${iconBg} ${iconColor}`}
+        >
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   FORM INPUT
+========================================================= */
+
+function FormInput({
+  label,
+  name,
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-slate-700">
+        {label}
+      </label>
+
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      />
+    </div>
+  );
+}
+
+/* =========================================================
+   FORM SELECT
+========================================================= */
+
+function FormSelect({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+  displayMap = {},
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-slate-700">
+        {label}
+      </label>
+
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {displayMap[option] || option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/* =========================================================
+   DETAIL ITEM
+========================================================= */
+
+function DetailItem({ label, value }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+
+      <p className="text-sm font-medium text-slate-700">
+        {value || "-"}
+      </p>
+    </div>
+  );
+}

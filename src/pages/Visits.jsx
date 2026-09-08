@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -9,150 +9,44 @@ import {
   ScanLine,
   Eye,
   MoreHorizontal,
-} from "lucide-react"
-
-const visits = [
-  {
-    id: "VIS-001",
-    participantId: "P-1001",
-    participantName: "Ananya Sharma",
-    trialId: "TRIAL-001",
-    trialName: "Ashwagandha Stress Management Study",
-    visitType: "Screening",
-    date: "05 Sep 2026",
-    time: "09:30 AM",
-    site: "AIIA New Delhi",
-    investigator: "Dr. Meera Sharma",
-    status: "Completed",
-    checkIn: "RFID",
-  },
-  {
-    id: "VIS-002",
-    participantId: "P-1002",
-    participantName: "Rahul Verma",
-    trialId: "TRIAL-001",
-    trialName: "Ashwagandha Stress Management Study",
-    visitType: "Baseline",
-    date: "05 Sep 2026",
-    time: "10:30 AM",
-    site: "AIIA New Delhi",
-    investigator: "Dr. Meera Sharma",
-    status: "Scheduled",
-    checkIn: "Pending",
-  },
-  {
-    id: "VIS-003",
-    participantId: "P-1003",
-    participantName: "Priya Patel",
-    trialId: "TRIAL-002",
-    trialName: "Ayurvedic Diabetes Management Trial",
-    visitType: "Visit 02",
-    date: "06 Sep 2026",
-    time: "11:00 AM",
-    site: "AIIA Ahmedabad",
-    investigator: "Dr. Rajesh Patel",
-    status: "Scheduled",
-    checkIn: "Pending",
-  },
-  {
-    id: "VIS-004",
-    participantId: "P-1004",
-    participantName: "Arjun Singh",
-    trialId: "TRIAL-003",
-    trialName: "Ayurvedic Arthritis Management Study",
-    visitType: "Follow-up",
-    date: "06 Sep 2026",
-    time: "02:00 PM",
-    site: "AIIA Jaipur",
-    investigator: "Dr. Kavita Singh",
-    status: "Scheduled",
-    checkIn: "Pending",
-  },
-  {
-    id: "VIS-005",
-    participantId: "P-1005",
-    participantName: "Neha Joshi",
-    trialId: "TRIAL-002",
-    trialName: "Ayurvedic Diabetes Management Trial",
-    visitType: "Visit 03",
-    date: "04 Sep 2026",
-    time: "10:00 AM",
-    site: "AIIA Bhopal",
-    investigator: "Dr. Amit Joshi",
-    status: "Missed",
-    checkIn: "No Check-in",
-  },
-  {
-    id: "VIS-006",
-    participantId: "P-1006",
-    participantName: "Vikram Rao",
-    trialId: "TRIAL-001",
-    trialName: "Ashwagandha Stress Management Study",
-    visitType: "Follow-up",
-    date: "07 Sep 2026",
-    time: "09:00 AM",
-    site: "AIIA New Delhi",
-    investigator: "Dr. Meera Sharma",
-    status: "Scheduled",
-    checkIn: "Pending",
-  },
-  {
-    id: "VIS-007",
-    participantId: "P-1007",
-    participantName: "Kavya Nair",
-    trialId: "TRIAL-003",
-    trialName: "Ayurvedic Arthritis Management Study",
-    visitType: "Baseline",
-    date: "03 Sep 2026",
-    time: "01:30 PM",
-    site: "AIIA Kochi",
-    investigator: "Dr. Anjali Nair",
-    status: "Completed",
-    checkIn: "RFID",
-  },
-  {
-    id: "VIS-008",
-    participantId: "P-1008",
-    participantName: "Rohit Mehta",
-    trialId: "TRIAL-004",
-    trialName: "Ayurvedic Immunity Study",
-    visitType: "Screening",
-    date: "08 Sep 2026",
-    time: "03:00 PM",
-    site: "AIIA Mumbai",
-    investigator: "Dr. Suresh Mehta",
-    status: "Scheduled",
-    checkIn: "Pending",
-  },
-]
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
+import api from "../services/api";
 
 function StatusBadge({ status }) {
+  const normalized = String(status || "").toUpperCase();
+
   const config = {
-    Scheduled: {
+    SCHEDULED: {
       className: "bg-blue-50 text-blue-700",
       icon: Clock3,
+      label: "Scheduled",
     },
-    Completed: {
+    COMPLETED: {
       className: "bg-emerald-50 text-emerald-700",
       icon: CheckCircle2,
+      label: "Completed",
     },
-    Missed: {
+    MISSED: {
       className: "bg-red-50 text-red-700",
       icon: XCircle,
+      label: "Missed",
     },
-  }
+  };
 
-  const current = config[status] || config.Scheduled
-  const Icon = current.icon
+  const current = config[normalized] || config.SCHEDULED;
+  const Icon = current.icon;
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${current.className}`}
     >
       <Icon size={13} />
-      {status}
+      {current.label}
     </span>
-  )
+  );
 }
 
 function CheckInBadge({ status }) {
@@ -162,7 +56,7 @@ function CheckInBadge({ status }) {
         <ScanLine size={13} />
         RFID
       </span>
-    )
+    );
   }
 
   if (status === "Pending") {
@@ -171,77 +65,493 @@ function CheckInBadge({ status }) {
         <Clock3 size={13} />
         Pending
       </span>
-    )
+    );
   }
 
   return (
     <span className="text-xs font-medium text-slate-400">
       No Check-in
     </span>
-  )
+  );
 }
 
+const emptyForm = {
+  trial_id: "",
+  participant_id: "",
+  visit_name: "",
+  scheduled_date: "",
+  completed_date: "",
+  status: "SCHEDULED",
+  notes: "",
+};
+
 function Visits() {
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("All")
-  const [typeFilter, setTypeFilter] = useState("All")
+  const [visits, setVisits] = useState([]);
+  const [participants, setParticipants] = useState([]);
+  const [trials, setTrials] = useState([]);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [typeFilter, setTypeFilter] = useState("All");
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingVisit, setEditingVisit] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // --------------------------------------------------
+  // FETCH DATA
+  // --------------------------------------------------
+
+  const fetchVisits = async () => {
+    try {
+      const response = await api.get("/visits");
+
+      setVisits(response.data.visits || []);
+    } catch (err) {
+      console.error("Fetch Visits Error:", err);
+
+      setError(
+        err.response?.data?.message || "Failed to load visits"
+      );
+    }
+  };
+
+  const fetchParticipants = async () => {
+    try {
+      const response = await api.get("/participants");
+
+      setParticipants(response.data.participants || []);
+    } catch (err) {
+      console.error("Fetch Participants Error:", err);
+    }
+  };
+
+  const fetchTrials = async () => {
+    try {
+      const response = await api.get("/trials");
+
+      setTrials(response.data.trials || []);
+    } catch (err) {
+      console.error("Fetch Trials Error:", err);
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
+
+    await Promise.all([
+      fetchVisits(),
+      fetchParticipants(),
+      fetchTrials(),
+    ]);
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // --------------------------------------------------
+  // HELPERS
+  // --------------------------------------------------
+
+  const getParticipant = (participantId) => {
+    return participants.find(
+      (participant) =>
+        Number(participant.id) === Number(participantId)
+    );
+  };
+
+  const getTrial = (trialId) => {
+    return trials.find(
+      (trial) => Number(trial.id) === Number(trialId)
+    );
+  };
+
+  const getParticipantCode = (participantId) => {
+    const participant = getParticipant(participantId);
+
+    return (
+      participant?.participant_code ||
+      `P-${String(participantId).padStart(4, "0")}`
+    );
+  };
+
+  const getParticipantName = (participantId) => {
+    const participant = getParticipant(participantId);
+
+    if (!participant) {
+      return "Participant";
+    }
+
+    return (
+      participant.name ||
+      participant.full_name ||
+      participant.participant_code ||
+      `Participant #${participant.id}`
+    );
+  };
+
+  const getTrialName = (trialId) => {
+    const trial = getTrial(trialId);
+
+    return (
+      trial?.title ||
+      trial?.name ||
+      `Trial #${trialId}`
+    );
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "-";
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return dateValue;
+    }
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (dateValue) => {
+    if (!dateValue) return "";
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getScheduledDateInput = (dateValue) => {
+    if (!dateValue) return "";
+
+    return String(dateValue).substring(0, 10);
+  };
+
+  // --------------------------------------------------
+  // FILTERING
+  // --------------------------------------------------
 
   const filteredVisits = useMemo(() => {
     return visits.filter((visit) => {
-      const searchText = search.toLowerCase()
+      const participantCode = getParticipantCode(
+        visit.participant_id
+      );
+
+      const participantName = getParticipantName(
+        visit.participant_id
+      );
+
+      const trialName = getTrialName(visit.trial_id);
+
+      const visitName = visit.visit_name || "";
+
+      const searchText = search.toLowerCase();
 
       const matchesSearch =
-        visit.id.toLowerCase().includes(searchText) ||
-        visit.participantId.toLowerCase().includes(searchText) ||
-        visit.participantName.toLowerCase().includes(searchText) ||
-        visit.trialId.toLowerCase().includes(searchText) ||
-        visit.trialName.toLowerCase().includes(searchText) ||
-        visit.site.toLowerCase().includes(searchText)
+        String(visit.id)
+          .toLowerCase()
+          .includes(searchText) ||
+        participantCode
+          .toLowerCase()
+          .includes(searchText) ||
+        participantName
+          .toLowerCase()
+          .includes(searchText) ||
+        String(visit.trial_id)
+          .toLowerCase()
+          .includes(searchText) ||
+        trialName
+          .toLowerCase()
+          .includes(searchText) ||
+        visitName
+          .toLowerCase()
+          .includes(searchText);
+
+      const normalizedStatus = String(
+        visit.status || ""
+      ).toUpperCase();
 
       const matchesStatus =
         statusFilter === "All" ||
-        visit.status === statusFilter
+        normalizedStatus === statusFilter.toUpperCase();
 
       const matchesType =
         typeFilter === "All" ||
-        visit.visitType === typeFilter
+        visitName === typeFilter;
 
       return (
         matchesSearch &&
         matchesStatus &&
         matchesType
-      )
-    })
-  }, [search, statusFilter, typeFilter])
+      );
+    });
+  }, [
+    visits,
+    participants,
+    trials,
+    search,
+    statusFilter,
+    typeFilter,
+  ]);
 
-  const totalVisits = visits.length
+  // --------------------------------------------------
+  // SUMMARY
+  // --------------------------------------------------
+
+  const totalVisits = visits.length;
 
   const scheduledVisits = visits.filter(
-    (visit) => visit.status === "Scheduled"
-  ).length
+    (visit) =>
+      String(visit.status).toUpperCase() === "SCHEDULED"
+  ).length;
 
   const completedVisits = visits.filter(
-    (visit) => visit.status === "Completed"
-  ).length
+    (visit) =>
+      String(visit.status).toUpperCase() === "COMPLETED"
+  ).length;
 
   const missedVisits = visits.filter(
-    (visit) => visit.status === "Missed"
-  ).length
+    (visit) =>
+      String(visit.status).toUpperCase() === "MISSED"
+  ).length;
 
   const completionRate =
     totalVisits > 0
-      ? Math.round((completedVisits / totalVisits) * 100)
-      : 0
+      ? Math.round(
+          (completedVisits / totalVisits) * 100
+        )
+      : 0;
+
+  // --------------------------------------------------
+  // MODAL
+  // --------------------------------------------------
+
+  const openCreateModal = () => {
+    setEditingVisit(null);
+    setForm(emptyForm);
+    setError("");
+    setShowModal(true);
+  };
+
+  const openEditModal = (visit) => {
+    setEditingVisit(visit);
+
+    setForm({
+      trial_id: visit.trial_id || "",
+      participant_id: visit.participant_id || "",
+      visit_name: visit.visit_name || "",
+      scheduled_date:
+        getScheduledDateInput(visit.scheduled_date),
+      completed_date:
+        getScheduledDateInput(visit.completed_date),
+      status: visit.status || "SCHEDULED",
+      notes: visit.notes || "",
+    });
+
+    setError("");
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    if (saving) return;
+
+    setShowModal(false);
+    setEditingVisit(null);
+    setForm(emptyForm);
+    setError("");
+  };
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  // --------------------------------------------------
+  // CREATE / UPDATE
+  // --------------------------------------------------
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!form.trial_id) {
+      setError("Please select a clinical trial.");
+      return;
+    }
+
+    if (!form.participant_id) {
+      setError("Please select a participant.");
+      return;
+    }
+
+    if (!form.visit_name.trim()) {
+      setError("Please enter visit name.");
+      return;
+    }
+
+    if (!form.scheduled_date) {
+      setError("Please select scheduled date.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const payload = {
+        trial_id: Number(form.trial_id),
+        participant_id: Number(form.participant_id),
+        visit_name: form.visit_name.trim(),
+        scheduled_date: form.scheduled_date,
+        completed_date:
+          form.completed_date || null,
+        status: form.status,
+        notes: form.notes.trim() || null,
+      };
+
+      if (editingVisit) {
+        await api.put(
+          `/visits/${editingVisit.id}`,
+          payload
+        );
+
+        setSuccess("Visit updated successfully.");
+      } else {
+        await api.post("/visits", payload);
+
+        setSuccess("Visit scheduled successfully.");
+      }
+
+      await fetchVisits();
+
+      closeModal();
+
+      setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+    } catch (err) {
+      console.error("Save Visit Error:", err);
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to save visit."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // --------------------------------------------------
+  // DELETE
+  // --------------------------------------------------
+
+  const handleDelete = async (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this visit?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError("");
+
+      await api.delete(`/visits/${id}`);
+
+      setVisits((previous) =>
+        previous.filter(
+          (visit) => Number(visit.id) !== Number(id)
+        )
+      );
+
+      setSuccess("Visit deleted successfully.");
+
+      setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+    } catch (err) {
+      console.error("Delete Visit Error:", err);
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to delete visit."
+      );
+    }
+  };
+
+  // --------------------------------------------------
+  // VIEW
+  // --------------------------------------------------
+
+  const handleView = (visit) => {
+    const participantName = getParticipantName(
+      visit.participant_id
+    );
+
+    const trialName = getTrialName(
+      visit.trial_id
+    );
+
+    window.alert(
+      `Visit Details\n\n` +
+        `Visit: ${visit.visit_name}\n` +
+        `Participant: ${participantName}\n` +
+        `Trial: ${trialName}\n` +
+        `Scheduled: ${formatDate(
+          visit.scheduled_date
+        )}\n` +
+        `Status: ${visit.status}\n` +
+        `Notes: ${visit.notes || "No notes"}`
+    );
+  };
+
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
 
   return (
     <div className="space-y-6">
 
+      {/* Success */}
+      {success && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          {success}
+        </div>
+      )}
+
+      {/* Error */}
+      {error && !showModal && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-
         <div>
           <div className="flex items-center gap-2">
-
             <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
               <CalendarDays size={22} />
             </div>
@@ -249,7 +559,6 @@ function Visits() {
             <h1 className="text-2xl font-bold text-slate-900">
               Visits
             </h1>
-
           </div>
 
           <p className="mt-2 text-sm text-slate-500">
@@ -257,21 +566,20 @@ function Visits() {
           </p>
         </div>
 
-        <button className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+        <button
+          onClick={openCreateModal}
+          className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+        >
           <Plus size={18} />
           Schedule Visit
         </button>
-
       </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
-        {/* Total */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Total Visits
@@ -285,16 +593,11 @@ function Visits() {
             <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
               <CalendarDays size={22} />
             </div>
-
           </div>
-
         </div>
 
-        {/* Scheduled */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Scheduled
@@ -308,16 +611,11 @@ function Visits() {
             <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
               <Clock3 size={22} />
             </div>
-
           </div>
-
         </div>
 
-        {/* Completed */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Completed
@@ -331,16 +629,11 @@ function Visits() {
             <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
               <CheckCircle2 size={22} />
             </div>
-
           </div>
-
         </div>
 
-        {/* Missed */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Missed
@@ -358,21 +651,16 @@ function Visits() {
             <div className="rounded-lg bg-red-50 p-3 text-red-600">
               <XCircle size={22} />
             </div>
-
           </div>
-
         </div>
 
       </div>
 
       {/* Filters */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-
         <div className="flex flex-col gap-3 lg:flex-row">
 
-          {/* Search */}
           <div className="relative flex-1">
-
             <Search
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -384,13 +672,11 @@ function Visits() {
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search visit, participant, trial or site..."
+              placeholder="Search visit, participant or trial..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
             />
-
           </div>
 
-          {/* Status */}
           <select
             value={statusFilter}
             onChange={(event) =>
@@ -404,7 +690,6 @@ function Visits() {
             <option value="Missed">Missed</option>
           </select>
 
-          {/* Visit Type */}
           <select
             value={typeFilter}
             onChange={(event) =>
@@ -421,14 +706,12 @@ function Visits() {
           </select>
 
         </div>
-
       </div>
 
-      {/* Visit Table */}
+      {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-
           <div>
             <h2 className="font-semibold text-slate-900">
               Visit Schedule
@@ -443,208 +726,231 @@ function Visits() {
             <ScanLine size={15} />
             RFID check-in enabled
           </div>
-
         </div>
 
         <div className="overflow-x-auto">
 
-          <table className="w-full min-w-[1200px] text-left">
+          {loading ? (
+            <div className="px-6 py-16 text-center">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
 
-            <thead className="bg-slate-50">
+              <p className="mt-3 text-sm text-slate-500">
+                Loading visits...
+              </p>
+            </div>
+          ) : (
+            <table className="w-full min-w-[1100px] text-left">
 
-              <tr className="border-b border-slate-200">
+              <thead className="bg-slate-50">
+                <tr className="border-b border-slate-200">
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Visit
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Visit
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Participant
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Participant
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Clinical Trial
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Clinical Trial
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Date & Time
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Date
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Site / Investigator
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Check-in
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Check-in
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Status
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Status
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Action
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Action
-                </th>
+                </tr>
+              </thead>
 
-              </tr>
+              <tbody className="divide-y divide-slate-100">
 
-            </thead>
+                {filteredVisits.map((visit) => {
 
-            <tbody className="divide-y divide-slate-100">
+                  const participantCode =
+                    getParticipantCode(
+                      visit.participant_id
+                    );
 
-              {filteredVisits.map((visit) => (
+                  const participantName =
+                    getParticipantName(
+                      visit.participant_id
+                    );
 
-                <tr
-                  key={visit.id}
-                  className="transition hover:bg-slate-50"
-                >
+                  const trialName =
+                    getTrialName(
+                      visit.trial_id
+                    );
 
-                  {/* Visit */}
-                  <td className="px-5 py-4">
+                  return (
+                    <tr
+                      key={visit.id}
+                      className="transition hover:bg-slate-50"
+                    >
 
-                    <p className="text-xs font-semibold text-blue-600">
-                      {visit.id}
-                    </p>
+                      {/* Visit */}
+                      <td className="px-5 py-4">
+                        <p className="text-xs font-semibold text-blue-600">
+                          VIS-{String(visit.id).padStart(3, "0")}
+                        </p>
 
-                    <p className="mt-1 text-sm font-semibold text-slate-900">
-                      {visit.visitType}
-                    </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                          {visit.visit_name}
+                        </p>
+                      </td>
 
-                  </td>
+                      {/* Participant */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
 
-                  {/* Participant */}
-                  <td className="px-5 py-4">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">
+                            {participantCode.slice(-2)}
+                          </div>
 
-                    <div className="flex items-center gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {participantName}
+                            </p>
 
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">
-                        {visit.participantId.slice(-2)}
-                      </div>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {participantCode}
+                            </p>
+                          </div>
 
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {visit.participantName}
+                        </div>
+                      </td>
+
+                      {/* Trial */}
+                      <td className="px-5 py-4">
+                        <p className="text-xs font-semibold text-blue-600">
+                          TRIAL-{String(visit.trial_id).padStart(3, "0")}
+                        </p>
+
+                        <p className="mt-1 max-w-xs text-sm font-medium text-slate-800">
+                          {trialName}
+                        </p>
+                      </td>
+
+                      {/* Date */}
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {formatDate(
+                            visit.scheduled_date
+                          )}
                         </p>
 
                         <p className="mt-1 text-xs text-slate-500">
-                          {visit.participantId}
+                          {formatTime(
+                            visit.scheduled_date
+                          )}
                         </p>
-                      </div>
+                      </td>
 
-                    </div>
+                      {/* Check-in */}
+                      <td className="px-5 py-4">
+                        <CheckInBadge
+                          status={
+                            visit.checkin_status ||
+                            "Pending"
+                          }
+                        />
+                      </td>
 
-                  </td>
+                      {/* Status */}
+                      <td className="px-5 py-4">
+                        <StatusBadge
+                          status={visit.status}
+                        />
+                      </td>
 
-                  {/* Trial */}
-                  <td className="px-5 py-4">
+                      {/* Actions */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-1">
 
-                    <p className="text-xs font-semibold text-blue-600">
-                      {visit.trialId}
-                    </p>
+                          <button
+                            onClick={() =>
+                              handleView(visit)
+                            }
+                            title="View Visit"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Eye size={17} />
+                          </button>
 
-                    <p className="mt-1 max-w-xs text-sm font-medium text-slate-800">
-                      {visit.trialName}
-                    </p>
+                          <button
+                            onClick={() =>
+                              openEditModal(visit)
+                            }
+                            title="Edit Visit"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-amber-50 hover:text-amber-600"
+                          >
+                            <Pencil size={17} />
+                          </button>
 
-                  </td>
+                          <button
+                            onClick={() =>
+                              handleDelete(
+                                visit.id
+                              )
+                            }
+                            title="Delete Visit"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 size={17} />
+                          </button>
 
-                  {/* Date */}
-                  <td className="px-5 py-4">
+                          <button
+                            title="More Actions"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
+                          >
+                            <MoreHorizontal size={17} />
+                          </button>
 
-                    <p className="text-sm font-semibold text-slate-800">
-                      {visit.date}
-                    </p>
+                        </div>
+                      </td>
 
-                    <p className="mt-1 text-xs text-slate-500">
-                      {visit.time}
-                    </p>
+                    </tr>
+                  );
+                })}
 
-                  </td>
+              </tbody>
 
-                  {/* Site */}
-                  <td className="px-5 py-4">
+            </table>
+          )}
 
-                    <p className="text-sm font-medium text-slate-800">
-                      {visit.site}
-                    </p>
+          {!loading &&
+            filteredVisits.length === 0 && (
+              <div className="px-6 py-16 text-center">
 
-                    <p className="mt-1 text-xs text-slate-500">
-                      {visit.investigator}
-                    </p>
+                <CalendarDays
+                  size={40}
+                  className="mx-auto text-slate-300"
+                />
 
-                  </td>
+                <h3 className="mt-3 font-semibold text-slate-900">
+                  No visits found
+                </h3>
 
-                  {/* Check-in */}
-                  <td className="px-5 py-4">
+                <p className="mt-1 text-sm text-slate-500">
+                  Try changing your search or filters.
+                </p>
 
-                    <CheckInBadge
-                      status={visit.checkIn}
-                    />
-
-                  </td>
-
-                  {/* Status */}
-                  <td className="px-5 py-4">
-
-                    <StatusBadge
-                      status={visit.status}
-                    />
-
-                  </td>
-
-                  {/* Actions */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-1">
-
-                      <button
-                        title="View Visit"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
-                      >
-                        <Eye size={17} />
-                      </button>
-
-                      <button
-                        title="More Actions"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
-                      >
-                        <MoreHorizontal size={17} />
-                      </button>
-
-                    </div>
-
-                  </td>
-
-                </tr>
-
-              ))}
-
-            </tbody>
-
-          </table>
+              </div>
+            )}
 
         </div>
-
-        {/* Empty State */}
-        {filteredVisits.length === 0 && (
-          <div className="px-6 py-16 text-center">
-
-            <CalendarDays
-              size={40}
-              className="mx-auto text-slate-300"
-            />
-
-            <h3 className="mt-3 font-semibold text-slate-900">
-              No visits found
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Try changing your search or filters.
-            </p>
-
-          </div>
-        )}
-
       </div>
 
       {/* RFID Info */}
@@ -660,15 +966,276 @@ function Visits() {
           </p>
 
           <p className="mt-1 text-xs text-blue-700">
-            Participants with linked RFID cards can be automatically checked
-            in when they arrive for a scheduled clinical trial visit.
+            Participants with linked RFID cards can be automatically checked in when they arrive for a scheduled clinical trial visit.
           </p>
         </div>
 
       </div>
 
+      {/* CREATE / EDIT MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {editingVisit
+                    ? "Edit Visit"
+                    : "Schedule New Visit"}
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  {editingVisit
+                    ? "Update clinical trial visit details."
+                    : "Schedule a participant visit."}
+                </p>
+              </div>
+
+              <button
+                onClick={closeModal}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            {/* Form */}
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5 p-6"
+            >
+
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                {/* Trial */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Clinical Trial *
+                  </label>
+
+                  <select
+                    name="trial_id"
+                    value={form.trial_id}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    required
+                  >
+                    <option value="">
+                      Select Trial
+                    </option>
+
+                    {trials.map((trial) => (
+                      <option
+                        key={trial.id}
+                        value={trial.id}
+                      >
+                        {trial.title ||
+                          trial.name ||
+                          `Trial #${trial.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Participant */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Participant *
+                  </label>
+
+                  <select
+                    name="participant_id"
+                    value={form.participant_id}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    required
+                  >
+                    <option value="">
+                      Select Participant
+                    </option>
+
+                    {participants.map(
+                      (participant) => (
+                        <option
+                          key={participant.id}
+                          value={participant.id}
+                        >
+                          {participant.participant_code ||
+                            `Participant #${participant.id}`}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+
+                {/* Visit Name */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Visit Name *
+                  </label>
+
+                  <select
+                    name="visit_name"
+                    value={form.visit_name}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    required
+                  >
+                    <option value="">
+                      Select Visit Type
+                    </option>
+
+                    <option value="Screening">
+                      Screening
+                    </option>
+
+                    <option value="Baseline">
+                      Baseline
+                    </option>
+
+                    <option value="Visit 02">
+                      Visit 02
+                    </option>
+
+                    <option value="Visit 03">
+                      Visit 03
+                    </option>
+
+                    <option value="Follow-up">
+                      Follow-up
+                    </option>
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Status *
+                  </label>
+
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                  >
+                    <option value="SCHEDULED">
+                      Scheduled
+                    </option>
+
+                    <option value="COMPLETED">
+                      Completed
+                    </option>
+
+                    <option value="MISSED">
+                      Missed
+                    </option>
+                  </select>
+                </div>
+
+                {/* Scheduled Date */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Scheduled Date *
+                  </label>
+
+                  <input
+                    type="date"
+                    name="scheduled_date"
+                    value={form.scheduled_date}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                {/* Completed Date */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Completed Date
+                  </label>
+
+                  <input
+                    type="date"
+                    name="completed_date"
+                    value={form.completed_date}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                  />
+                </div>
+
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Notes
+                </label>
+
+                <textarea
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  rows={4}
+                  placeholder="Enter visit notes..."
+                  className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={saving}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CalendarDays size={17} />
+
+                      {editingVisit
+                        ? "Update Visit"
+                        : "Schedule Visit"}
+                    </>
+                  )}
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
     </div>
-  )
+  );
 }
 
-export default Visits
+export default Visits;

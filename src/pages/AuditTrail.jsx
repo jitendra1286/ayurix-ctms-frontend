@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ShieldCheck,
   Search,
@@ -14,142 +14,10 @@ import {
   XCircle,
   Database,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react"
 
-const auditLogs = [
-  {
-    id: "AUD-00091",
-    timestamp: "04 Sep 2026, 10:24 AM",
-    user: "Dr. Meera Sharma",
-    role: "Researcher",
-    action: "Updated Participant",
-    module: "Participants",
-    recordId: "P-1024",
-    description: "Participant visit information was updated.",
-    ipAddress: "192.168.1.24",
-    status: "Success",
-  },
-  {
-    id: "AUD-00090",
-    timestamp: "04 Sep 2026, 10:12 AM",
-    user: "Admin User",
-    role: "Administrator",
-    action: "Approved Trial",
-    module: "Clinical Trials",
-    recordId: "TRIAL-001",
-    description: "Clinical trial status changed to approved.",
-    ipAddress: "192.168.1.10",
-    status: "Success",
-  },
-  {
-    id: "AUD-00089",
-    timestamp: "04 Sep 2026, 09:58 AM",
-    user: "Dr. Rajesh Patel",
-    role: "Investigator",
-    action: "Reported Adverse Event",
-    module: "Pharmacovigilance",
-    recordId: "AE-00125",
-    description: "New adverse event record was created.",
-    ipAddress: "192.168.2.18",
-    status: "Success",
-  },
-  {
-    id: "AUD-00088",
-    timestamp: "04 Sep 2026, 09:42 AM",
-    user: "RFID Device",
-    role: "System",
-    action: "Participant Check-in",
-    module: "RFID Check-in",
-    recordId: "P-1024",
-    description: "Participant checked in using RFID device.",
-    ipAddress: "10.0.0.21",
-    status: "Success",
-  },
-  {
-    id: "AUD-00087",
-    timestamp: "04 Sep 2026, 09:31 AM",
-    user: "Dr. Kavita Singh",
-    role: "Investigator",
-    action: "Uploaded Document",
-    module: "Documents",
-    recordId: "DOC-00121",
-    description: "Investigator CV was uploaded.",
-    ipAddress: "192.168.3.12",
-    status: "Success",
-  },
-  {
-    id: "AUD-00086",
-    timestamp: "04 Sep 2026, 09:18 AM",
-    user: "Admin User",
-    role: "Administrator",
-    action: "Changed Status",
-    module: "Ethics Committee",
-    recordId: "EC-0042",
-    description: "Ethics submission moved to Under Review.",
-    ipAddress: "192.168.1.10",
-    status: "Success",
-  },
-  {
-    id: "AUD-00085",
-    timestamp: "04 Sep 2026, 08:57 AM",
-    user: "Regulatory Team",
-    role: "Regulatory",
-    action: "Updated Compliance",
-    module: "Regulatory",
-    recordId: "REG-0019",
-    description: "CTRI compliance record was updated.",
-    ipAddress: "192.168.4.16",
-    status: "Success",
-  },
-  {
-    id: "AUD-00084",
-    timestamp: "04 Sep 2026, 08:41 AM",
-    user: "RFID Device",
-    role: "System",
-    action: "Blocked Check-in",
-    module: "RFID Check-in",
-    recordId: "INVALID001",
-    description: "Unknown RFID UID attempted participant check-in.",
-    ipAddress: "10.0.0.21",
-    status: "Warning",
-  },
-  {
-    id: "AUD-00083",
-    timestamp: "03 Sep 2026, 06:32 PM",
-    user: "Dr. Amit Joshi",
-    role: "Investigator",
-    action: "Updated Visit",
-    module: "Visits",
-    recordId: "VIS-0092",
-    description: "Participant visit status was updated.",
-    ipAddress: "192.168.5.19",
-    status: "Success",
-  },
-  {
-    id: "AUD-00082",
-    timestamp: "03 Sep 2026, 05:48 PM",
-    user: "Admin User",
-    role: "Administrator",
-    action: "Deleted Document",
-    module: "Documents",
-    recordId: "DOC-00115",
-    description: "Document was removed from the active document repository.",
-    ipAddress: "192.168.1.10",
-    status: "Warning",
-  },
-  {
-    id: "AUD-00081",
-    timestamp: "03 Sep 2026, 04:26 PM",
-    user: "System",
-    role: "System",
-    action: "Login Failed",
-    module: "Authentication",
-    recordId: "AUTH-0081",
-    description: "Failed authentication attempt detected.",
-    ipAddress: "172.16.2.45",
-    status: "Failed",
-  },
-]
+import api from "../services/api"
 
 function StatusBadge({ status }) {
   const config = {
@@ -195,30 +63,204 @@ function RoleBadge({ role }) {
         colors[role] || "bg-slate-100 text-slate-600"
       }`}
     >
-      {role}
+      {role || "System"}
     </span>
   )
 }
 
+function formatTimestamp(value) {
+  if (!value) return "-"
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function formatAction(action) {
+  if (!action) return "-"
+
+  return action
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function formatModule(entityType) {
+  if (!entityType) return "System"
+
+  const modules = {
+    TRIAL: "Clinical Trials",
+    PARTICIPANT: "Participants",
+    VISIT: "Visits",
+    ADVERSE_EVENT: "Pharmacovigilance",
+    DOCUMENT: "Documents",
+    ETHICS: "Ethics Committee",
+    REGULATORY: "Regulatory",
+    RFID: "RFID Check-in",
+    AUTH: "Authentication",
+    SITE: "Sites & Investigators",
+  }
+
+  if (modules[entityType]) {
+    return modules[entityType]
+  }
+
+  return entityType
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function formatStatus(action) {
+  const value = String(action || "").toUpperCase()
+
+  if (
+    value.includes("FAIL") ||
+    value.includes("BLOCK") ||
+    value.includes("ERROR")
+  ) {
+    return value.includes("BLOCK") ? "Warning" : "Failed"
+  }
+
+  return "Success"
+}
+
 function AuditTrail() {
+  const [auditLogs, setAuditLogs] = useState([])
+
   const [search, setSearch] = useState("")
   const [moduleFilter, setModuleFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")
   const [roleFilter, setRoleFilter] = useState("All")
+
   const [selectedLog, setSelectedLog] = useState(null)
 
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD AUDIT LOGS
+  |--------------------------------------------------------------------------
+  */
+
+  const loadAuditLogs = async () => {
+    try {
+      setLoading(true)
+      setError("")
+
+      const response = await api.get("/audit-logs")
+
+      const logs = response.data?.data || []
+
+      const formattedLogs = logs.map((item) => {
+        const action = formatAction(item.action)
+
+        return {
+          id:
+            item.auditCode ||
+            item.id ||
+            `AUD-${String(item.databaseId || "").padStart(5, "0")}`,
+
+          databaseId: item.databaseId || item.id,
+
+          timestamp: formatTimestamp(
+            item.createdAt ||
+              item.created_at ||
+              item.timestamp
+          ),
+
+          user:
+            item.userName ||
+            item.user_name ||
+            item.username ||
+            "System",
+
+          role:
+            item.role ||
+            item.userRole ||
+            item.user_role ||
+            "System",
+
+          action,
+
+          module:
+            item.module ||
+            formatModule(item.entityType || item.entity_type),
+
+          recordId:
+            item.recordId ||
+            item.record_id ||
+            item.entityId ||
+            item.entity_id ||
+            "-",
+
+          description:
+            item.details ||
+            item.description ||
+            "Audit activity recorded in the CTMS.",
+
+          ipAddress:
+            item.ipAddress ||
+            item.ip_address ||
+            "-",
+
+          status:
+            item.status ||
+            formatStatus(item.action),
+        }
+      })
+
+      setAuditLogs(formattedLogs)
+    } catch (err) {
+      console.error("Audit logs API error:", err)
+
+      if (err.response?.status === 401) {
+        setError(
+          "Authorization token is required. Please login again."
+        )
+      } else {
+        setError(
+          err.response?.data?.message ||
+            "Failed to load audit logs."
+        )
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAuditLogs()
+  }, [])
+
+  /*
+  |--------------------------------------------------------------------------
+  | FILTER
+  |--------------------------------------------------------------------------
+  */
+
   const filteredLogs = useMemo(() => {
-    const value = search.toLowerCase()
+    const value = search.toLowerCase().trim()
 
     return auditLogs.filter((log) => {
       const matchesSearch =
-        log.id.toLowerCase().includes(value) ||
-        log.user.toLowerCase().includes(value) ||
-        log.action.toLowerCase().includes(value) ||
-        log.module.toLowerCase().includes(value) ||
-        log.recordId.toLowerCase().includes(value) ||
-        log.description.toLowerCase().includes(value) ||
-        log.ipAddress.toLowerCase().includes(value)
+        !value ||
+        String(log.id).toLowerCase().includes(value) ||
+        String(log.user).toLowerCase().includes(value) ||
+        String(log.action).toLowerCase().includes(value) ||
+        String(log.module).toLowerCase().includes(value) ||
+        String(log.recordId).toLowerCase().includes(value) ||
+        String(log.description).toLowerCase().includes(value) ||
+        String(log.ipAddress).toLowerCase().includes(value)
 
       const matchesModule =
         moduleFilter === "All" ||
@@ -240,11 +282,18 @@ function AuditTrail() {
       )
     })
   }, [
+    auditLogs,
     search,
     moduleFilter,
     statusFilter,
     roleFilter,
   ])
+
+  /*
+  |--------------------------------------------------------------------------
+  | STATS
+  |--------------------------------------------------------------------------
+  */
 
   const totalLogs = auditLogs.length
 
@@ -260,16 +309,124 @@ function AuditTrail() {
     (log) => log.status === "Failed"
   ).length
 
+  /*
+  |--------------------------------------------------------------------------
+  | EXPORT
+  |--------------------------------------------------------------------------
+  */
+
   const handleExport = () => {
-    alert("Audit trail exported successfully in demo mode.")
+    if (!auditLogs.length) {
+      alert("No audit logs available to export.")
+      return
+    }
+
+    const exportData = auditLogs.map((log) => ({
+      auditId: log.id,
+      timestamp: log.timestamp,
+      user: log.user,
+      role: log.role,
+      action: log.action,
+      module: log.module,
+      recordId: log.recordId,
+      description: log.description,
+      ipAddress: log.ipAddress,
+      status: log.status,
+    }))
+
+    const blob = new Blob(
+      [JSON.stringify(exportData, null, 2)],
+      {
+        type: "application/json",
+      }
+    )
+
+    const url = window.URL.createObjectURL(blob)
+
+    const link = document.createElement("a")
+
+    link.href = url
+    link.download = "ayurix-audit-trail.json"
+
+    document.body.appendChild(link)
+
+    link.click()
+
+    link.remove()
+
+    window.URL.revokeObjectURL(url)
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOADING
+  |--------------------------------------------------------------------------
+  */
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[500px] items-center justify-center">
+        <div className="text-center">
+          <RefreshCw
+            size={32}
+            className="mx-auto animate-spin text-slate-700"
+          />
+
+          <p className="mt-3 text-sm font-medium text-slate-600">
+            Loading audit trail...
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | ERROR
+  |--------------------------------------------------------------------------
+  */
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+        <div className="flex items-start gap-3">
+          <ShieldCheck
+            size={22}
+            className="mt-0.5 text-red-600"
+          />
+
+          <div>
+            <h2 className="font-semibold text-red-800">
+              Unable to load Audit Trail
+            </h2>
+
+            <p className="mt-1 text-sm text-red-700">
+              {error}
+            </p>
+
+            <button
+              onClick={loadAuditLogs}
+              className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+            >
+              <RefreshCw size={16} />
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
+
       {/* HEADER */}
+
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+
         <div>
           <div className="flex items-center gap-2">
+
             <div className="rounded-lg bg-slate-100 p-2 text-slate-700">
               <ShieldCheck size={22} />
             </div>
@@ -277,6 +434,7 @@ function AuditTrail() {
             <h1 className="text-2xl font-bold text-slate-900">
               Audit Trail
             </h1>
+
           </div>
 
           <p className="mt-2 text-sm text-slate-500">
@@ -285,19 +443,34 @@ function AuditTrail() {
           </p>
         </div>
 
-        <button
-          onClick={handleExport}
-          className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
-        >
-          <Download size={17} />
-          Export Audit Log
-        </button>
+        <div className="flex gap-2">
+
+          <button
+            onClick={loadAuditLogs}
+            className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <RefreshCw size={17} />
+            Refresh
+          </button>
+
+          <button
+            onClick={handleExport}
+            className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+          >
+            <Download size={17} />
+            Export Audit Log
+          </button>
+
+        </div>
       </div>
 
       {/* SECURITY STATS */}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
+
             <div>
               <p className="text-sm text-slate-500">
                 Total Activities
@@ -311,11 +484,13 @@ function AuditTrail() {
             <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
               <Activity size={22} />
             </div>
+
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
+
             <div>
               <p className="text-sm text-slate-500">
                 Successful
@@ -329,11 +504,13 @@ function AuditTrail() {
             <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
               <CheckCircle2 size={22} />
             </div>
+
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
+
             <div>
               <p className="text-sm text-slate-500">
                 Warnings
@@ -347,11 +524,13 @@ function AuditTrail() {
             <div className="rounded-lg bg-amber-50 p-3 text-amber-600">
               <AlertTriangle size={22} />
             </div>
+
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
+
             <div>
               <p className="text-sm text-slate-500">
                 Failed / Security
@@ -365,18 +544,24 @@ function AuditTrail() {
             <div className="rounded-lg bg-red-50 p-3 text-red-600">
               <XCircle size={22} />
             </div>
+
           </div>
         </div>
+
       </div>
 
       {/* AUDIT PRINCIPLE */}
+
       <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5">
+
         <div className="flex items-start gap-3">
+
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600">
             <Database size={20} />
           </div>
 
           <div>
+
             <h3 className="font-semibold text-indigo-900">
               Traceable Activity History
             </h3>
@@ -384,17 +569,23 @@ function AuditTrail() {
             <p className="mt-1 text-sm leading-6 text-indigo-700">
               Every important action can be recorded with user,
               timestamp, module, affected record, action type and
-              system information. This provides traceability for
-              clinical trial operations and review workflows.
+              system information.
             </p>
+
           </div>
+
         </div>
+
       </div>
 
       {/* FILTERS */}
+
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
         <div className="grid gap-3 lg:grid-cols-4">
+
           <div className="relative">
+
             <Search
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -409,9 +600,11 @@ function AuditTrail() {
               placeholder="Search audit logs..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-500 focus:bg-white"
             />
+
           </div>
 
           <div className="relative">
+
             <Filter
               size={17}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -425,9 +618,7 @@ function AuditTrail() {
               className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-8 text-sm text-slate-700 outline-none focus:border-slate-500"
             >
               <option value="All">All Modules</option>
-              <option value="Participants">
-                Participants
-              </option>
+              <option value="Participants">Participants</option>
               <option value="Clinical Trials">
                 Clinical Trials
               </option>
@@ -437,18 +628,17 @@ function AuditTrail() {
               <option value="RFID Check-in">
                 RFID Check-in
               </option>
-              <option value="Documents">
-                Documents
-              </option>
+              <option value="Documents">Documents</option>
               <option value="Ethics Committee">
                 Ethics Committee
               </option>
-              <option value="Regulatory">
-                Regulatory
-              </option>
+              <option value="Regulatory">Regulatory</option>
               <option value="Visits">Visits</option>
               <option value="Authentication">
                 Authentication
+              </option>
+              <option value="Sites & Investigators">
+                Sites & Investigators
               </option>
             </select>
 
@@ -456,6 +646,7 @@ function AuditTrail() {
               size={15}
               className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
             />
+
           </div>
 
           <select
@@ -489,12 +680,16 @@ function AuditTrail() {
             <option value="Warning">Warning</option>
             <option value="Failed">Failed</option>
           </select>
+
         </div>
       </div>
 
       {/* AUDIT TABLE */}
+
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+
           <div>
             <h2 className="font-semibold text-slate-900">
               Activity Log
@@ -509,12 +704,17 @@ function AuditTrail() {
             <Clock3 size={14} />
             Real-time activity tracking
           </div>
+
         </div>
 
         <div className="overflow-x-auto">
+
           <table className="w-full min-w-[1450px] text-left">
+
             <thead className="bg-slate-50">
+
               <tr className="border-b border-slate-200">
+
                 <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Audit ID
                 </th>
@@ -550,15 +750,20 @@ function AuditTrail() {
                 <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Action
                 </th>
+
               </tr>
+
             </thead>
 
             <tbody className="divide-y divide-slate-100">
+
               {filteredLogs.map((log) => (
+
                 <tr
-                  key={log.id}
+                  key={log.databaseId || log.id}
                   className="transition hover:bg-slate-50"
                 >
+
                   <td className="px-5 py-4">
                     <span className="text-xs font-bold text-slate-700">
                       {log.id}
@@ -566,7 +771,9 @@ function AuditTrail() {
                   </td>
 
                   <td className="px-5 py-4">
+
                     <div className="flex items-center gap-2">
+
                       <Clock3
                         size={15}
                         className="text-slate-400"
@@ -575,16 +782,21 @@ function AuditTrail() {
                       <span className="text-sm text-slate-700">
                         {log.timestamp}
                       </span>
+
                     </div>
+
                   </td>
 
                   <td className="px-5 py-4">
+
                     <div className="flex items-center gap-2">
+
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                         <UserRound size={14} />
                       </div>
 
                       <div>
+
                         <p className="text-sm font-semibold text-slate-800">
                           {log.user}
                         </p>
@@ -592,12 +804,17 @@ function AuditTrail() {
                         <div className="mt-1">
                           <RoleBadge role={log.role} />
                         </div>
+
                       </div>
+
                     </div>
+
                   </td>
 
                   <td className="px-5 py-4">
+
                     <div className="flex items-center gap-2">
+
                       <FileText
                         size={15}
                         className="text-indigo-500"
@@ -606,25 +823,33 @@ function AuditTrail() {
                       <span className="text-sm font-semibold text-slate-800">
                         {log.action}
                       </span>
+
                     </div>
+
                   </td>
 
                   <td className="px-5 py-4">
+
                     <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                       {log.module}
                     </span>
+
                   </td>
 
                   <td className="px-5 py-4">
+
                     <span className="text-sm font-semibold text-indigo-600">
                       {log.recordId}
                     </span>
+
                   </td>
 
                   <td className="px-5 py-4">
+
                     <span className="font-mono text-xs text-slate-500">
                       {log.ipAddress}
                     </span>
+
                   </td>
 
                   <td className="px-5 py-4">
@@ -632,6 +857,7 @@ function AuditTrail() {
                   </td>
 
                   <td className="px-5 py-4">
+
                     <button
                       onClick={() => setSelectedLog(log)}
                       title="View Audit Details"
@@ -639,15 +865,23 @@ function AuditTrail() {
                     >
                       <Eye size={17} />
                     </button>
+
                   </td>
+
                 </tr>
+
               ))}
+
             </tbody>
+
           </table>
+
         </div>
 
         {filteredLogs.length === 0 && (
+
           <div className="px-6 py-16 text-center">
+
             <ShieldCheck
               size={40}
               className="mx-auto text-slate-300"
@@ -660,39 +894,52 @@ function AuditTrail() {
             <p className="mt-1 text-sm text-slate-500">
               Try changing your search or filters.
             </p>
+
           </div>
+
         )}
+
       </div>
 
       {/* SECURITY NOTE */}
+
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+
         <div className="flex items-start gap-3">
+
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-slate-700">
             <ShieldCheck size={20} />
           </div>
 
           <div>
+
             <h3 className="font-semibold text-slate-900">
               Audit & Data Integrity
             </h3>
 
             <p className="mt-1 text-sm leading-6 text-slate-600">
               Audit records provide a traceable history of
-              important CTMS operations. In the production backend,
-              audit entries should be generated automatically by
-              the API and protected from unauthorized modification
-              or deletion.
+              important CTMS operations and system activities.
             </p>
+
           </div>
+
         </div>
+
       </div>
 
       {/* DETAIL MODAL */}
+
       {selectedLog && (
+
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+
           <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
+
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+
               <div>
+
                 <h2 className="font-semibold text-slate-900">
                   Audit Log Details
                 </h2>
@@ -700,6 +947,7 @@ function AuditTrail() {
                 <p className="mt-1 text-xs text-slate-500">
                   {selectedLog.id}
                 </p>
+
               </div>
 
               <button
@@ -708,10 +956,13 @@ function AuditTrail() {
               >
                 <XCircle size={20} />
               </button>
+
             </div>
 
             <div className="space-y-4 p-6">
+
               <div className="rounded-lg bg-slate-50 p-4">
+
                 <p className="text-xs text-slate-500">
                   Action
                 </p>
@@ -723,9 +974,11 @@ function AuditTrail() {
                 <p className="mt-2 text-sm text-slate-600">
                   {selectedLog.description}
                 </p>
+
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
+
                 <div>
                   <p className="text-xs text-slate-500">
                     User
@@ -785,9 +1038,11 @@ function AuditTrail() {
                     {selectedLog.ipAddress}
                   </p>
                 </div>
+
               </div>
 
               <div>
+
                 <p className="text-xs text-slate-500">
                   Status
                 </p>
@@ -795,20 +1050,28 @@ function AuditTrail() {
                 <div className="mt-1">
                   <StatusBadge status={selectedLog.status} />
                 </div>
+
               </div>
+
             </div>
 
             <div className="flex justify-end border-t border-slate-200 px-6 py-4">
+
               <button
                 onClick={() => setSelectedLog(null)}
                 className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900"
               >
                 Close
               </button>
+
             </div>
+
           </div>
+
         </div>
+
       )}
+
     </div>
   )
 }

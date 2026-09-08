@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Search,
   Plus,
@@ -13,115 +13,11 @@ import {
   Eye,
   MoreHorizontal,
   ClipboardCheck,
+  Trash2,
+  X,
 } from "lucide-react"
 
-const ethicsSubmissions = [
-  {
-    id: "ETH-001",
-    trialId: "TRIAL-001",
-    trialTitle: "Ayurvedic Intervention for Type 2 Diabetes",
-    investigator: "Dr. Meera Sharma",
-    committee: "AIIA Institutional Ethics Committee",
-    submissionDate: "05 Aug 2026",
-    meetingDate: "12 Sep 2026",
-    reviewer: "Dr. Anil Kapoor",
-    status: "Approved",
-    documents: 8,
-    priority: "High",
-    decisionDate: "20 Aug 2026",
-    remarks: "Protocol and informed consent documents approved.",
-  },
-  {
-    id: "ETH-002",
-    trialId: "TRIAL-002",
-    trialTitle: "Ayurvedic Therapy for Chronic Arthritis",
-    investigator: "Dr. Rajesh Patel",
-    committee: "AIIA Institutional Ethics Committee",
-    submissionDate: "18 Aug 2026",
-    meetingDate: "10 Sep 2026",
-    reviewer: "Dr. Sunita Rao",
-    status: "Under Review",
-    documents: 6,
-    priority: "Medium",
-    decisionDate: "-",
-    remarks: "Protocol is currently under committee review.",
-  },
-  {
-    id: "ETH-003",
-    trialId: "TRIAL-003",
-    trialTitle: "Herbal Support in Migraine Management",
-    investigator: "Dr. Kavita Singh",
-    committee: "AIIA Institutional Ethics Committee",
-    submissionDate: "22 Aug 2026",
-    meetingDate: "15 Sep 2026",
-    reviewer: "Dr. Anil Kapoor",
-    status: "Pending Review",
-    documents: 7,
-    priority: "High",
-    decisionDate: "-",
-    remarks: "Submission received and waiting for reviewer assignment.",
-  },
-  {
-    id: "ETH-004",
-    trialId: "TRIAL-004",
-    trialTitle: "Ayurvedic Formulation for Skin Disorders",
-    investigator: "Dr. Amit Joshi",
-    committee: "AIIA Institutional Ethics Committee",
-    submissionDate: "25 Aug 2026",
-    meetingDate: "18 Sep 2026",
-    reviewer: "Dr. Sunita Rao",
-    status: "Query Raised",
-    documents: 5,
-    priority: "High",
-    decisionDate: "-",
-    remarks: "Additional participant consent clarification requested.",
-  },
-  {
-    id: "ETH-005",
-    trialId: "TRIAL-005",
-    trialTitle: "Ayurvedic Lifestyle Intervention Study",
-    investigator: "Dr. Anjali Nair",
-    committee: "AIIA Institutional Ethics Committee",
-    submissionDate: "28 Aug 2026",
-    meetingDate: "20 Sep 2026",
-    reviewer: "Dr. Priya Verma",
-    status: "Approved",
-    documents: 9,
-    priority: "Medium",
-    decisionDate: "01 Sep 2026",
-    remarks: "Ethics approval granted with no major observations.",
-  },
-  {
-    id: "ETH-006",
-    trialId: "TRIAL-006",
-    trialTitle: "Ayurvedic Treatment for Sleep Disorders",
-    investigator: "Dr. Suresh Mehta",
-    committee: "AIIA Institutional Ethics Committee",
-    submissionDate: "30 Aug 2026",
-    meetingDate: "22 Sep 2026",
-    reviewer: "Not Assigned",
-    status: "Pending Review",
-    documents: 4,
-    priority: "Low",
-    decisionDate: "-",
-    remarks: "Awaiting initial ethics committee screening.",
-  },
-  {
-    id: "ETH-007",
-    trialId: "TRIAL-007",
-    trialTitle: "Herbal Intervention for Digestive Health",
-    investigator: "Dr. Priya Verma",
-    committee: "AIIA Institutional Ethics Committee",
-    submissionDate: "02 Sep 2026",
-    meetingDate: "25 Sep 2026",
-    reviewer: "Dr. Anil Kapoor",
-    status: "Rejected",
-    documents: 6,
-    priority: "High",
-    decisionDate: "03 Sep 2026",
-    remarks: "Major protocol modifications required before resubmission.",
-  },
-]
+import api from "../services/api"
 
 function StatusBadge({ status }) {
   const config = {
@@ -179,19 +75,87 @@ function PriorityBadge({ priority }) {
 }
 
 function EthicsCommittee() {
+  const [submissions, setSubmissions] = useState([])
+  const [trials, setTrials] = useState([])
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
 
+  const [showModal, setShowModal] = useState(false)
+  const [showViewModal, setShowViewModal] = useState(false)
+
+  const [selectedSubmission, setSelectedSubmission] = useState(null)
+
+  const [form, setForm] = useState({
+    trial_id: "",
+    investigator_name: "",
+    committee_name: "AIIA Institutional Ethics Committee",
+    submission_date: "",
+    meeting_date: "",
+    reviewer_name: "",
+    status: "PENDING_REVIEW",
+    documents_count: 0,
+    priority: "MEDIUM",
+    decision_date: "",
+    remarks: "",
+  })
+
+  // =========================
+  // FETCH DATA
+  // =========================
+
+  const fetchSubmissions = async () => {
+    try {
+      setLoading(true)
+      setError("")
+
+      const response = await api.get("/ethics")
+
+      setSubmissions(response.data.submissions || [])
+    } catch (err) {
+      console.error("Fetch Ethics Error:", err)
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to load ethics submissions"
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchTrials = async () => {
+    try {
+      const response = await api.get("/trials")
+
+      setTrials(response.data.trials || [])
+    } catch (err) {
+      console.error("Fetch Trials Error:", err)
+    }
+  }
+
+  useEffect(() => {
+    fetchSubmissions()
+    fetchTrials()
+  }, [])
+
+  // =========================
+  // FILTER
+  // =========================
+
   const filteredSubmissions = useMemo(() => {
-    return ethicsSubmissions.filter((submission) => {
+    return submissions.filter((submission) => {
       const searchText = search.toLowerCase()
 
       const matchesSearch =
-        submission.id.toLowerCase().includes(searchText) ||
-        submission.trialId.toLowerCase().includes(searchText) ||
-        submission.trialTitle.toLowerCase().includes(searchText) ||
-        submission.investigator.toLowerCase().includes(searchText) ||
-        submission.committee.toLowerCase().includes(searchText)
+        submission.id?.toLowerCase().includes(searchText) ||
+        submission.trialId?.toLowerCase().includes(searchText) ||
+        submission.trialTitle?.toLowerCase().includes(searchText) ||
+        submission.investigator?.toLowerCase().includes(searchText) ||
+        submission.committee?.toLowerCase().includes(searchText)
 
       const matchesStatus =
         statusFilter === "All" ||
@@ -199,25 +163,164 @@ function EthicsCommittee() {
 
       return matchesSearch && matchesStatus
     })
-  }, [search, statusFilter])
+  }, [submissions, search, statusFilter])
 
-  const totalSubmissions = ethicsSubmissions.length
+  // =========================
+  // STATS
+  // =========================
 
-  const pendingReviews = ethicsSubmissions.filter(
+  const totalSubmissions = submissions.length
+
+  const pendingReviews = submissions.filter(
     (item) => item.status === "Pending Review"
   ).length
 
-  const underReview = ethicsSubmissions.filter(
+  const underReview = submissions.filter(
     (item) => item.status === "Under Review"
   ).length
 
-  const approved = ethicsSubmissions.filter(
+  const approved = submissions.filter(
     (item) => item.status === "Approved"
   ).length
 
-  const queries = ethicsSubmissions.filter(
+  const queries = submissions.filter(
     (item) => item.status === "Query Raised"
   ).length
+
+  // =========================
+  // FORM
+  // =========================
+
+  const handleChange = (event) => {
+    const { name, value } = event.target
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const resetForm = () => {
+    setForm({
+      trial_id: "",
+      investigator_name: "",
+      committee_name: "AIIA Institutional Ethics Committee",
+      submission_date: "",
+      meeting_date: "",
+      reviewer_name: "",
+      status: "PENDING_REVIEW",
+      documents_count: 0,
+      priority: "MEDIUM",
+      decision_date: "",
+      remarks: "",
+    })
+  }
+
+  const openNewSubmission = () => {
+    resetForm()
+    setShowModal(true)
+  }
+
+  // =========================
+  // CREATE SUBMISSION
+  // =========================
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+
+    try {
+      await api.post("/ethics", {
+        ...form,
+        trial_id: Number(form.trial_id),
+        documents_count: Number(form.documents_count || 0),
+      })
+
+      alert("Ethics submission created successfully")
+
+      setShowModal(false)
+      resetForm()
+
+      await fetchSubmissions()
+    } catch (err) {
+      console.error("Create Ethics Error:", err)
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to create ethics submission"
+      )
+    }
+  }
+
+  // =========================
+  // VIEW
+  // =========================
+
+  const handleView = async (submission) => {
+    try {
+      const numericId = submissions.find(
+        (item) => item.id === submission.id
+      )?.id
+
+      const originalSubmission = submissions.find(
+        (item) => item.id === submission.id
+      )
+
+      if (!originalSubmission) return
+
+      const response = await api.get(
+        `/ethics/${originalSubmission.databaseId || originalSubmission.id}`
+      )
+
+      setSelectedSubmission({
+        ...submission,
+        ...response.data.submission,
+      })
+
+      setShowViewModal(true)
+    } catch (err) {
+      console.error("View Ethics Error:", err)
+
+      // Fallback to already loaded data
+      setSelectedSubmission(submission)
+      setShowViewModal(true)
+    }
+  }
+
+  // =========================
+  // DELETE
+  // =========================
+
+  const handleDelete = async (submission) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${submission.id}?`
+    )
+
+    if (!confirmed) return
+
+    try {
+      const originalId = submissions.find(
+        (item) => item.id === submission.id
+      )?.databaseId
+
+      if (!originalId) {
+        alert("Unable to identify submission")
+        return
+      }
+
+      await api.delete(`/ethics/${originalId}`)
+
+      alert("Ethics submission deleted successfully")
+
+      await fetchSubmissions()
+    } catch (err) {
+      console.error("Delete Ethics Error:", err)
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to delete ethics submission"
+      )
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -241,104 +344,59 @@ function EthicsCommittee() {
           </p>
         </div>
 
-        <button className="flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700">
+        <button
+          onClick={openNewSubmission}
+          className="flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700"
+        >
           <Plus size={18} />
           New Submission
         </button>
       </div>
 
+      {/* ERROR */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* STATS */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">
-                Total Submissions
-              </p>
+        <StatCard
+          title="Total Submissions"
+          value={totalSubmissions}
+          icon={FileText}
+          color="purple"
+        />
 
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {totalSubmissions}
-              </p>
-            </div>
+        <StatCard
+          title="Pending Review"
+          value={pendingReviews}
+          icon={Clock3}
+          color="amber"
+        />
 
-            <div className="rounded-lg bg-purple-50 p-3 text-purple-600">
-              <FileText size={22} />
-            </div>
-          </div>
-        </div>
+        <StatCard
+          title="Under Review"
+          value={underReview}
+          icon={ClipboardCheck}
+          color="blue"
+        />
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">
-                Pending Review
-              </p>
+        <StatCard
+          title="Approved"
+          value={approved}
+          icon={CheckCircle2}
+          color="emerald"
+        />
 
-              <p className="mt-2 text-3xl font-bold text-amber-600">
-                {pendingReviews}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-amber-50 p-3 text-amber-600">
-              <Clock3 size={22} />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">
-                Under Review
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-blue-600">
-                {underReview}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
-              <ClipboardCheck size={22} />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">
-                Approved
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-emerald-600">
-                {approved}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
-              <CheckCircle2 size={22} />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">
-                Queries Raised
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-orange-600">
-                {queries}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-orange-50 p-3 text-orange-600">
-              <MessageSquareWarning size={22} />
-            </div>
-          </div>
-        </div>
+        <StatCard
+          title="Queries Raised"
+          value={queries}
+          icon={MessageSquareWarning}
+          color="orange"
+        />
 
       </div>
 
@@ -415,7 +473,7 @@ function EthicsCommittee() {
         </div>
       </div>
 
-      {/* SEARCH + FILTER */}
+      {/* SEARCH */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
         <div className="flex flex-col gap-3 md:flex-row">
@@ -472,7 +530,9 @@ function EthicsCommittee() {
             </h2>
 
             <p className="mt-1 text-xs text-slate-500">
-              {filteredSubmissions.length} submission(s) found
+              {loading
+                ? "Loading submissions..."
+                : `${filteredSubmissions.length} submission(s) found`}
             </p>
           </div>
 
@@ -528,178 +588,198 @@ function EthicsCommittee() {
 
             <tbody className="divide-y divide-slate-100">
 
-              {filteredSubmissions.map((submission) => (
-
-                <tr
-                  key={submission.id}
-                  className="transition hover:bg-slate-50"
-                >
-
-                  {/* SUBMISSION */}
-                  <td className="px-5 py-4">
-
-                    <p className="text-xs font-semibold text-purple-600">
-                      {submission.id}
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-slate-900">
-                      Submitted {submission.submissionDate}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {submission.committee}
-                    </p>
-
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan="9"
+                    className="px-5 py-12 text-center text-sm text-slate-500"
+                  >
+                    Loading ethics submissions...
                   </td>
-
-                  {/* TRIAL */}
-                  <td className="max-w-[280px] px-5 py-4">
-
-                    <p className="text-xs font-semibold text-blue-600">
-                      {submission.trialId}
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-slate-800">
-                      {submission.trialTitle}
-                    </p>
-
-                  </td>
-
-                  {/* INVESTIGATOR */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-2">
-
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-50 text-purple-600">
-                        <UserRound size={15} />
-                      </div>
-
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">
-                          {submission.investigator}
-                        </p>
-
-                        <p className="text-xs text-slate-500">
-                          Principal Investigator
-                        </p>
-                      </div>
-
-                    </div>
-
-                  </td>
-
-                  {/* REVIEWER */}
-                  <td className="px-5 py-4">
-
-                    <p className="text-sm font-medium text-slate-700">
-                      {submission.reviewer}
-                    </p>
-
-                  </td>
-
-                  {/* MEETING */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-
-                      <CalendarDays
-                        size={15}
-                        className="text-slate-400"
-                      />
-
-                      {submission.meetingDate}
-
-                    </div>
-
-                  </td>
-
-                  {/* DOCUMENTS */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-2">
-
-                      <FileText
-                        size={16}
-                        className="text-slate-400"
-                      />
-
-                      <span className="text-sm font-semibold text-slate-700">
-                        {submission.documents}
-                      </span>
-
-                    </div>
-
-                  </td>
-
-                  {/* PRIORITY */}
-                  <td className="px-5 py-4">
-                    <PriorityBadge
-                      priority={submission.priority}
-                    />
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="px-5 py-4">
-                    <StatusBadge status={submission.status} />
-                  </td>
-
-                  {/* ACTION */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-1">
-
-                      <button
-                        title="View Submission"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-purple-50 hover:text-purple-600"
-                      >
-                        <Eye size={17} />
-                      </button>
-
-                      <button
-                        title="More Actions"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
-                      >
-                        <MoreHorizontal size={17} />
-                      </button>
-
-                    </div>
-
-                  </td>
-
                 </tr>
+              ) : filteredSubmissions.length > 0 ? (
+                filteredSubmissions.map((submission) => (
 
-              ))}
+                  <tr
+                    key={submission.id}
+                    className="transition hover:bg-slate-50"
+                  >
+
+                    {/* SUBMISSION */}
+                    <td className="px-5 py-4">
+
+                      <p className="text-xs font-semibold text-purple-600">
+                        {submission.id}
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        Submitted {submission.submissionDate}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {submission.committee}
+                      </p>
+
+                    </td>
+
+                    {/* TRIAL */}
+                    <td className="max-w-[280px] px-5 py-4">
+
+                      <p className="text-xs font-semibold text-blue-600">
+                        {submission.trialId}
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-slate-800">
+                        {submission.trialTitle}
+                      </p>
+
+                    </td>
+
+                    {/* INVESTIGATOR */}
+                    <td className="px-5 py-4">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-50 text-purple-600">
+                          <UserRound size={15} />
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {submission.investigator}
+                          </p>
+
+                          <p className="text-xs text-slate-500">
+                            Principal Investigator
+                          </p>
+                        </div>
+
+                      </div>
+
+                    </td>
+
+                    {/* REVIEWER */}
+                    <td className="px-5 py-4">
+
+                      <p className="text-sm font-medium text-slate-700">
+                        {submission.reviewer}
+                      </p>
+
+                    </td>
+
+                    {/* MEETING */}
+                    <td className="px-5 py-4">
+
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
+
+                        <CalendarDays
+                          size={15}
+                          className="text-slate-400"
+                        />
+
+                        {submission.meetingDate}
+
+                      </div>
+
+                    </td>
+
+                    {/* DOCUMENTS */}
+                    <td className="px-5 py-4">
+
+                      <div className="flex items-center gap-2">
+
+                        <FileText
+                          size={16}
+                          className="text-slate-400"
+                        />
+
+                        <span className="text-sm font-semibold text-slate-700">
+                          {submission.documents}
+                        </span>
+
+                      </div>
+
+                    </td>
+
+                    {/* PRIORITY */}
+                    <td className="px-5 py-4">
+                      <PriorityBadge
+                        priority={submission.priority}
+                      />
+                    </td>
+
+                    {/* STATUS */}
+                    <td className="px-5 py-4">
+                      <StatusBadge status={submission.status} />
+                    </td>
+
+                    {/* ACTION */}
+                    <td className="px-5 py-4">
+
+                      <div className="flex items-center gap-1">
+
+                        <button
+                          title="View Submission"
+                          onClick={() => handleView(submission)}
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-purple-50 hover:text-purple-600"
+                        >
+                          <Eye size={17} />
+                        </button>
+
+                        <button
+                          title="Delete Submission"
+                          onClick={() => handleDelete(submission)}
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+
+                        <button
+                          title="More Actions"
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
+                        >
+                          <MoreHorizontal size={17} />
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan="9"
+                    className="px-6 py-16 text-center"
+                  >
+
+                    <ShieldCheck
+                      size={40}
+                      className="mx-auto text-slate-300"
+                    />
+
+                    <h3 className="mt-3 font-semibold text-slate-900">
+                      No submissions found
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Try changing your search or status filter.
+                    </p>
+
+                  </td>
+                </tr>
+              )}
 
             </tbody>
 
           </table>
 
         </div>
-
-        {filteredSubmissions.length === 0 && (
-
-          <div className="px-6 py-16 text-center">
-
-            <ShieldCheck
-              size={40}
-              className="mx-auto text-slate-300"
-            />
-
-            <h3 className="mt-3 font-semibold text-slate-900">
-              No submissions found
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Try changing your search or status filter.
-            </p>
-
-          </div>
-
-        )}
-
       </div>
 
-      {/* APPROVAL TIMELINE */}
+      {/* INFORMATION */}
       <div className="rounded-xl border border-purple-100 bg-purple-50 p-5">
 
         <div className="flex items-start gap-3">
@@ -726,60 +806,548 @@ function EthicsCommittee() {
 
         <div className="mt-5 grid gap-3 md:grid-cols-4">
 
-          <div className="rounded-lg bg-white p-4">
+          <InfoBox
+            title="Protocol"
+            value="Submitted"
+          />
 
-            <p className="text-xs font-medium text-slate-500">
-              Protocol
-            </p>
+          <InfoBox
+            title="Documents"
+            value="Committee Review"
+          />
 
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              Submitted
-            </p>
+          <InfoBox
+            title="Decision"
+            value="Approved / Query / Rejected"
+          />
+
+          <InfoBox
+            title="Enrollment"
+            value="After Required Approvals"
+          />
+
+        </div>
+
+      </div>
+
+      {/* ========================= */}
+      {/* NEW SUBMISSION MODAL */}
+      {/* ========================= */}
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  New Ethics Submission
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Submit a clinical trial for ethics committee review.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowModal(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5 p-6"
+            >
+
+              {/* TRIAL */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Clinical Trial *
+                </label>
+
+                <select
+                  name="trial_id"
+                  value={form.trial_id}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-purple-500"
+                >
+                  <option value="">
+                    Select Clinical Trial
+                  </option>
+
+                  {trials.map((trial) => (
+                    <option
+                      key={trial.id}
+                      value={trial.id}
+                    >
+                      TRIAL-{String(trial.id).padStart(3, "0")} -{" "}
+                      {trial.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* TWO COLUMNS */}
+              <div className="grid gap-4 md:grid-cols-2">
+
+                <FormInput
+                  label="Investigator Name"
+                  name="investigator_name"
+                  value={form.investigator_name}
+                  onChange={handleChange}
+                  placeholder="Dr. Investigator Name"
+                />
+
+                <FormInput
+                  label="Reviewer Name"
+                  name="reviewer_name"
+                  value={form.reviewer_name}
+                  onChange={handleChange}
+                  placeholder="Reviewer name"
+                />
+
+                <FormInput
+                  label="Submission Date"
+                  name="submission_date"
+                  type="date"
+                  value={form.submission_date}
+                  onChange={handleChange}
+                  required
+                />
+
+                <FormInput
+                  label="Meeting Date"
+                  name="meeting_date"
+                  type="date"
+                  value={form.meeting_date}
+                  onChange={handleChange}
+                />
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Priority
+                  </label>
+
+                  <select
+                    name="priority"
+                    value={form.priority}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-purple-500"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Status
+                  </label>
+
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-purple-500"
+                  >
+                    <option value="PENDING_REVIEW">
+                      Pending Review
+                    </option>
+
+                    <option value="UNDER_REVIEW">
+                      Under Review
+                    </option>
+
+                    <option value="QUERY_RAISED">
+                      Query Raised
+                    </option>
+
+                    <option value="APPROVED">
+                      Approved
+                    </option>
+
+                    <option value="REJECTED">
+                      Rejected
+                    </option>
+                  </select>
+                </div>
+
+                <FormInput
+                  label="Documents Count"
+                  name="documents_count"
+                  type="number"
+                  min="0"
+                  value={form.documents_count}
+                  onChange={handleChange}
+                />
+
+                <FormInput
+                  label="Decision Date"
+                  name="decision_date"
+                  type="date"
+                  value={form.decision_date}
+                  onChange={handleChange}
+                />
+
+              </div>
+
+              {/* COMMITTEE */}
+              <FormInput
+                label="Committee Name"
+                name="committee_name"
+                value={form.committee_name}
+                onChange={handleChange}
+              />
+
+              {/* REMARKS */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Remarks
+                </label>
+
+                <textarea
+                  name="remarks"
+                  value={form.remarks}
+                  onChange={handleChange}
+                  rows="4"
+                  placeholder="Add ethics committee remarks..."
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-purple-500"
+                />
+              </div>
+
+              {/* BUTTONS */}
+              <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-700"
+                >
+                  Submit for Review
+                </button>
+
+              </div>
+
+            </form>
 
           </div>
 
-          <div className="rounded-lg bg-white p-4">
+        </div>
+      )}
 
-            <p className="text-xs font-medium text-slate-500">
-              Documents
-            </p>
+      {/* ========================= */}
+      {/* VIEW MODAL */}
+      {/* ========================= */}
 
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              Committee Review
-            </p>
+      {showViewModal && selectedSubmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+
+              <div>
+                <p className="text-xs font-semibold text-purple-600">
+                  {selectedSubmission.submission_code ||
+                    selectedSubmission.id}
+                </p>
+
+                <h2 className="mt-1 text-lg font-bold text-slate-900">
+                  Ethics Submission Details
+                </h2>
+              </div>
+
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            <div className="space-y-5 p-6">
+
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
+
+                <div>
+                  <p className="text-xs text-slate-500">
+                    Status
+                  </p>
+
+                  <div className="mt-1">
+                    <StatusBadge
+                      status={
+                        selectedSubmission.status?.includes("_")
+                          ? formatStatus(
+                              selectedSubmission.status
+                            )
+                          : selectedSubmission.status
+                      }
+                    />
+                  </div>
+                </div>
+
+                <PriorityBadge
+                  priority={
+                    selectedSubmission.priority?.includes("_")
+                      ? selectedSubmission.priority
+                          .charAt(0)
+                          .toUpperCase() +
+                        selectedSubmission.priority
+                          .slice(1)
+                          .toLowerCase()
+                      : selectedSubmission.priority
+                  }
+                />
+
+              </div>
+
+              <DetailRow
+                label="Clinical Trial"
+                value={
+                  selectedSubmission.trial_title ||
+                  selectedSubmission.trialTitle
+                }
+              />
+
+              <DetailRow
+                label="Trial ID"
+                value={
+                  selectedSubmission.trialId ||
+                  selectedSubmission.trial_id
+                }
+              />
+
+              <DetailRow
+                label="Investigator"
+                value={
+                  selectedSubmission.investigator ||
+                  selectedSubmission.investigator_name
+                }
+              />
+
+              <DetailRow
+                label="Committee"
+                value={
+                  selectedSubmission.committee ||
+                  selectedSubmission.committee_name
+                }
+              />
+
+              <DetailRow
+                label="Reviewer"
+                value={
+                  selectedSubmission.reviewer ||
+                  selectedSubmission.reviewer_name ||
+                  "Not Assigned"
+                }
+              />
+
+              <DetailRow
+                label="Submission Date"
+                value={
+                  selectedSubmission.submissionDate ||
+                  selectedSubmission.submission_date
+                }
+              />
+
+              <DetailRow
+                label="Meeting Date"
+                value={
+                  selectedSubmission.meetingDate ||
+                  selectedSubmission.meeting_date ||
+                  "-"
+                }
+              />
+
+              <DetailRow
+                label="Documents"
+                value={
+                  selectedSubmission.documents ||
+                  selectedSubmission.documents_count ||
+                  0
+                }
+              />
+
+              <DetailRow
+                label="Decision Date"
+                value={
+                  selectedSubmission.decisionDate ||
+                  selectedSubmission.decision_date ||
+                  "-"
+                }
+              />
+
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-500">
+                  Remarks
+                </p>
+
+                <p className="mt-2 rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
+                  {selectedSubmission.remarks ||
+                    "No remarks available."}
+                </p>
+              </div>
+
+            </div>
 
           </div>
 
-          <div className="rounded-lg bg-white p-4">
+        </div>
+      )}
 
-            <p className="text-xs font-medium text-slate-500">
-              Decision
-            </p>
+    </div>
+  )
+}
 
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              Approved / Query / Rejected
-            </p>
+// =========================
+// SMALL COMPONENTS
+// =========================
 
-          </div>
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+  color,
+}) {
+  const colors = {
+    purple: "bg-purple-50 text-purple-600",
+    amber: "bg-amber-50 text-amber-600",
+    blue: "bg-blue-50 text-blue-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+    orange: "bg-orange-50 text-orange-600",
+  }
 
-          <div className="rounded-lg bg-white p-4">
+  const textColors = {
+    purple: "text-slate-900",
+    amber: "text-amber-600",
+    blue: "text-blue-600",
+    emerald: "text-emerald-600",
+    orange: "text-orange-600",
+  }
 
-            <p className="text-xs font-medium text-slate-500">
-              Enrollment
-            </p>
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              After Required Approvals
-            </p>
+      <div className="flex items-center justify-between">
 
-          </div>
+        <div>
 
+          <p className="text-sm text-slate-500">
+            {title}
+          </p>
+
+          <p
+            className={`mt-2 text-3xl font-bold ${textColors[color]}`}
+          >
+            {value}
+          </p>
+
+        </div>
+
+        <div
+          className={`rounded-lg p-3 ${colors[color]}`}
+        >
+          <Icon size={22} />
         </div>
 
       </div>
 
     </div>
   )
+}
+
+function FormInput({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  required = false,
+  min,
+}) {
+  return (
+    <div>
+
+      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+        {label}
+        {required && " *"}
+      </label>
+
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        min={min}
+        className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-purple-500"
+      />
+
+    </div>
+  )
+}
+
+function InfoBox({ title, value }) {
+  return (
+    <div className="rounded-lg bg-white p-4">
+
+      <p className="text-xs font-medium text-slate-500">
+        {title}
+      </p>
+
+      <p className="mt-1 text-sm font-semibold text-slate-800">
+        {value}
+      </p>
+
+    </div>
+  )
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="border-b border-slate-100 pb-3">
+
+      <p className="text-xs font-semibold uppercase text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm font-medium text-slate-800">
+        {value || "-"}
+      </p>
+
+    </div>
+  )
+}
+
+function formatStatus(status) {
+  const statusMap = {
+    PENDING_REVIEW: "Pending Review",
+    UNDER_REVIEW: "Under Review",
+    QUERY_RAISED: "Query Raised",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+  }
+
+  return statusMap[status] || status
 }
 
 export default EthicsCommittee

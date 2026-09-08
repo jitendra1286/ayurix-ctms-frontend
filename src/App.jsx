@@ -1,27 +1,37 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import MainLayout from "./layouts/MainLayout"
+import MainLayout from "./layouts/MainLayout";
 
-import Dashboard from "./pages/Dashboard"
-import ClinicalTrials from "./pages/ClinicalTrials"
-import Participants from "./pages/Participants"
-import Visits from "./pages/Visits"
-import SitesInvestigators from "./pages/SitesInvestigators"
-import EthicsCommittee from "./pages/EthicsCommittee"
-import RegulatoryCompliance from "./pages/RegulatoryCompliance"
-import Pharmacovigilance from "./pages/Pharmacovigilance"
-import RFIDCheckIn from "./pages/RFIDCheckIn"
-import Documents from "./pages/Documents"
-import ReportsAnalytics from "./pages/ReportsAnalytics"
-import AuditTrail from "./pages/AuditTrail"
-import Notifications from "./pages/Notifications"
-import Settings from "./pages/Settings"
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import ClinicalTrials from "./pages/ClinicalTrials";
+import Participants from "./pages/Participants";
+import Visits from "./pages/Visits";
+import SitesInvestigators from "./pages/SitesInvestigators";
+import EthicsCommittee from "./pages/EthicsCommittee";
+import RegulatoryCompliance from "./pages/RegulatoryCompliance";
+import Pharmacovigilance from "./pages/Pharmacovigilance";
+import RFIDCheckIn from "./pages/RFIDCheckIn";
+import Documents from "./pages/Documents";
+import ReportsAnalytics from "./pages/ReportsAnalytics";
+import AuditTrail from "./pages/AuditTrail";
+import Notifications from "./pages/Notifications";
+import Settings from "./pages/Settings";
+
 
 function App() {
   return (
     <BrowserRouter>
+
       <Routes>
+
+        {/* LOGIN */}
+        <Route path="/login" element={<Login />} />
+
+
+        {/* MAIN APPLICATION */}
         <Route path="/" element={<MainLayout />}>
+
           <Route index element={<Dashboard />} />
 
           <Route
@@ -88,15 +98,20 @@ function App() {
             path="settings"
             element={<Settings />}
           />
+
         </Route>
 
+
+        {/* UNKNOWN ROUTE */}
         <Route
           path="*"
-          element={<Navigate to="/" replace />}
+          element={<Navigate to="/login" replace />}
         />
+
       </Routes>
+
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -5,46 +5,77 @@ import {
   Menu,
 } from "lucide-react"
 
-function Navbar() {
+function Navbar({ onMenuClick }) {
   return (
-    <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-6 backdrop-blur">
-      
-      <div className="flex items-center gap-4">
-        <button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden">
+    <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
+
+      {/* Left Section */}
+      <div className="flex min-w-0 items-center gap-3">
+
+        {/* Mobile Menu */}
+        <button
+          onClick={onMenuClick}
+          className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+          aria-label="Open menu"
+        >
           <Menu size={22} />
         </button>
 
-        <div>
-          <p className="text-sm text-slate-500">
+        <div className="min-w-0">
+          <p className="hidden text-sm text-slate-500 sm:block">
             Clinical Research Management
           </p>
 
-          <h2 className="text-xl font-bold text-slate-900">
+          <h2 className="truncate text-base font-bold text-slate-900 sm:text-xl">
             Ayurix Clinical Trials Dashboard
           </h2>
         </div>
+
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Right Section */}
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+
+        {/* Search */}
         <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 md:flex">
-          <Search size={17} className="text-slate-400" />
+          <Search
+            size={17}
+            className="text-slate-400"
+          />
 
           <input
             type="text"
             placeholder="Search..."
-            className="w-48 bg-transparent text-sm outline-none placeholder:text-slate-400"
+            className="w-32 bg-transparent text-sm outline-none placeholder:text-slate-400 lg:w-48"
           />
         </div>
 
-        <button className="relative rounded-lg p-2.5 text-slate-500 hover:bg-slate-100">
+        {/* Mobile Search Icon */}
+        <button
+          className="rounded-lg p-2.5 text-slate-500 hover:bg-slate-100 md:hidden"
+          aria-label="Search"
+        >
+          <Search size={19} />
+        </button>
+
+        {/* Notifications */}
+        <button
+          className="relative rounded-lg p-2.5 text-slate-500 hover:bg-slate-100"
+          aria-label="Notifications"
+        >
           <Bell size={20} />
 
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
         </button>
 
-        <button className="rounded-lg p-2.5 text-slate-500 hover:bg-slate-100">
+        {/* Help */}
+        <button
+          className="hidden rounded-lg p-2.5 text-slate-500 hover:bg-slate-100 sm:block"
+          aria-label="Help"
+        >
           <HelpCircle size={20} />
         </button>
+
       </div>
     </header>
   )

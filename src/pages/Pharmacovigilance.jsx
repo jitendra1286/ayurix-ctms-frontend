@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
-  XCircle,
   FileText,
   UserRound,
   CalendarDays,
@@ -15,136 +14,18 @@ import {
   MoreHorizontal,
   HeartPulse,
   Siren,
-} from "lucide-react"
-
-const adverseEvents = [
-  {
-    id: "AE-00125",
-    participant: "P-1024",
-    trialId: "TRIAL-001",
-    trialTitle: "Ayurvedic Intervention for Type 2 Diabetes",
-    site: "AIIA New Delhi",
-    event: "Nausea",
-    severity: "Mild",
-    seriousness: "Non-Serious",
-    causality: "Possible",
-    action: "Observation",
-    outcome: "Recovering",
-    status: "Under Review",
-    reportedBy: "Dr. Meera Sharma",
-    reportedDate: "02 Sep 2026",
-    onsetDate: "02 Sep 2026",
-  },
-  {
-    id: "AE-00124",
-    participant: "P-1031",
-    trialId: "TRIAL-002",
-    trialTitle: "Ayurvedic Therapy for Chronic Arthritis",
-    site: "AIIA Ahmedabad",
-    event: "Headache",
-    severity: "Moderate",
-    seriousness: "Non-Serious",
-    causality: "Unlikely",
-    action: "Supportive Treatment",
-    outcome: "Recovered",
-    status: "Closed",
-    reportedBy: "Dr. Rajesh Patel",
-    reportedDate: "01 Sep 2026",
-    onsetDate: "31 Aug 2026",
-  },
-  {
-    id: "AE-00123",
-    participant: "P-1045",
-    trialId: "TRIAL-001",
-    trialTitle: "Ayurvedic Intervention for Type 2 Diabetes",
-    site: "AIIA New Delhi",
-    event: "Skin Rash",
-    severity: "Severe",
-    seriousness: "Serious",
-    causality: "Probable",
-    action: "Intervention Discontinued",
-    outcome: "Recovering",
-    status: "SAE Review",
-    reportedBy: "Dr. Meera Sharma",
-    reportedDate: "30 Aug 2026",
-    onsetDate: "29 Aug 2026",
-  },
-  {
-    id: "AE-00122",
-    participant: "P-1078",
-    trialId: "TRIAL-003",
-    trialTitle: "Herbal Support in Migraine Management",
-    site: "AIIA Jaipur",
-    event: "Dizziness",
-    severity: "Moderate",
-    seriousness: "Non-Serious",
-    causality: "Possible",
-    action: "Dose Modified",
-    outcome: "Recovering",
-    status: "Under Review",
-    reportedBy: "Dr. Kavita Singh",
-    reportedDate: "29 Aug 2026",
-    onsetDate: "28 Aug 2026",
-  },
-  {
-    id: "AE-00121",
-    participant: "P-1089",
-    trialId: "TRIAL-004",
-    trialTitle: "Ayurvedic Formulation for Skin Disorders",
-    site: "AIIA Bhopal",
-    event: "Vomiting",
-    severity: "Severe",
-    seriousness: "Serious",
-    causality: "Possible",
-    action: "Hospitalization",
-    outcome: "Recovered",
-    status: "Reported",
-    reportedBy: "Dr. Amit Joshi",
-    reportedDate: "27 Aug 2026",
-    onsetDate: "27 Aug 2026",
-  },
-  {
-    id: "AE-00120",
-    participant: "P-1093",
-    trialId: "TRIAL-005",
-    trialTitle: "Ayurvedic Lifestyle Intervention Study",
-    site: "AIIA Kochi",
-    event: "Fatigue",
-    severity: "Mild",
-    seriousness: "Non-Serious",
-    causality: "Unlikely",
-    action: "No Action",
-    outcome: "Recovered",
-    status: "Closed",
-    reportedBy: "Dr. Anjali Nair",
-    reportedDate: "25 Aug 2026",
-    onsetDate: "24 Aug 2026",
-  },
-  {
-    id: "AE-00119",
-    participant: "P-1102",
-    trialId: "TRIAL-006",
-    trialTitle: "Ayurvedic Treatment for Sleep Disorders",
-    site: "AIIA Mumbai",
-    event: "Abdominal Pain",
-    severity: "Moderate",
-    seriousness: "Non-Serious",
-    causality: "Possible",
-    action: "Observation",
-    outcome: "Not Recovered",
-    status: "Under Review",
-    reportedBy: "Dr. Suresh Mehta",
-    reportedDate: "23 Aug 2026",
-    onsetDate: "23 Aug 2026",
-  },
-]
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
+import api from "../services/api";
 
 function SeverityBadge({ severity }) {
   const config = {
     Mild: "bg-emerald-50 text-emerald-700",
     Moderate: "bg-amber-50 text-amber-700",
     Severe: "bg-red-50 text-red-700",
-  }
+  };
 
   return (
     <span
@@ -152,13 +33,13 @@ function SeverityBadge({ severity }) {
         config[severity] || "bg-slate-100 text-slate-600"
       }`}
     >
-      {severity}
+      {severity || "-"}
     </span>
-  )
+  );
 }
 
 function SeriousnessBadge({ seriousness }) {
-  const isSerious = seriousness === "Serious"
+  const isSerious = seriousness === "Serious";
 
   return (
     <span
@@ -169,9 +50,9 @@ function SeriousnessBadge({ seriousness }) {
       }`}
     >
       {isSerious && <Siren size={13} />}
-      {seriousness}
+      {seriousness || "-"}
     </span>
-  )
+  );
 }
 
 function StatusBadge({ status }) {
@@ -192,96 +73,615 @@ function StatusBadge({ status }) {
       className: "bg-emerald-50 text-emerald-700",
       icon: CheckCircle2,
     },
-  }
+  };
 
-  const current = config[status] || config["Under Review"]
-  const Icon = current.icon
+  const current =
+    config[status] || config["Under Review"];
+
+  const Icon = current.icon;
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${current.className}`}
     >
       <Icon size={13} />
-      {status}
+      {status || "Under Review"}
     </span>
-  )
+  );
 }
 
+const emptyForm = {
+  trial_id: "",
+  participant_id: "",
+  event_term: "",
+  severity: "Mild",
+  seriousness: "Non-Serious",
+  onset_date: "",
+  outcome: "Recovering",
+  description: "",
+};
+
 function Pharmacovigilance() {
-  const [search, setSearch] = useState("")
-  const [severityFilter, setSeverityFilter] = useState("All")
-  const [statusFilter, setStatusFilter] = useState("All")
-  const [seriousnessFilter, setSeriousnessFilter] = useState("All")
+  const [adverseEvents, setAdverseEvents] = useState([]);
+  const [participants, setParticipants] = useState([]);
+  const [trials, setTrials] = useState([]);
+
+  const [search, setSearch] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [seriousnessFilter, setSeriousnessFilter] =
+    useState("All");
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+
+  const [form, setForm] = useState(emptyForm);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // --------------------------------------------------
+  // FETCH DATA
+  // --------------------------------------------------
+
+  const fetchAdverseEvents = async () => {
+    try {
+      const response = await api.get("/adverse-events");
+
+      setAdverseEvents(
+        response.data.adverseEvents ||
+          response.data.events ||
+          []
+      );
+    } catch (err) {
+      console.error(
+        "Fetch Adverse Events Error:",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to load adverse events."
+      );
+    }
+  };
+
+  const fetchParticipants = async () => {
+    try {
+      const response = await api.get("/participants");
+
+      setParticipants(
+        response.data.participants || []
+      );
+    } catch (err) {
+      console.error(
+        "Fetch Participants Error:",
+        err
+      );
+    }
+  };
+
+  const fetchTrials = async () => {
+    try {
+      const response = await api.get("/trials");
+
+      setTrials(response.data.trials || []);
+    } catch (err) {
+      console.error("Fetch Trials Error:", err);
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
+
+    await Promise.all([
+      fetchAdverseEvents(),
+      fetchParticipants(),
+      fetchTrials(),
+    ]);
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // --------------------------------------------------
+  // HELPERS
+  // --------------------------------------------------
+
+  const getParticipant = (id) => {
+    return participants.find(
+      (participant) =>
+        Number(participant.id) === Number(id)
+    );
+  };
+
+  const getTrial = (id) => {
+    return trials.find(
+      (trial) =>
+        Number(trial.id) === Number(id)
+    );
+  };
+
+  const getParticipantCode = (id) => {
+    const participant = getParticipant(id);
+
+    return (
+      participant?.participant_code ||
+      `P-${String(id).padStart(4, "0")}`
+    );
+  };
+
+  const getParticipantName = (id) => {
+    const participant = getParticipant(id);
+
+    if (!participant) {
+      return "Participant";
+    }
+
+    return (
+      participant.name ||
+      participant.full_name ||
+      participant.participant_code ||
+      `Participant #${participant.id}`
+    );
+  };
+
+  const getTrialName = (id) => {
+    const trial = getTrial(id);
+
+    return (
+      trial?.title ||
+      trial?.name ||
+      `Trial #${id}`
+    );
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "-";
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return dateValue;
+    }
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getDateInputValue = (dateValue) => {
+    if (!dateValue) return "";
+
+    return String(dateValue).substring(0, 10);
+  };
+
+  // --------------------------------------------------
+  // STATUS
+  // --------------------------------------------------
+
+  const getEventStatus = (event) => {
+    if (
+      event.status
+    ) {
+      return event.status;
+    }
+
+    if (event.seriousness === "Serious") {
+      return "SAE Review";
+    }
+
+    if (event.outcome === "Recovered") {
+      return "Closed";
+    }
+
+    return "Under Review";
+  };
+
+  // --------------------------------------------------
+  // FILTER
+  // --------------------------------------------------
 
   const filteredEvents = useMemo(() => {
     return adverseEvents.filter((event) => {
-      const searchText = search.toLowerCase()
+      const participantCode =
+        getParticipantCode(
+          event.participant_id
+        );
+
+      const participantName =
+        getParticipantName(
+          event.participant_id
+        );
+
+      const trialName =
+        getTrialName(event.trial_id);
+
+      const eventTerm =
+        event.event_term || "";
+
+      const searchText =
+        search.toLowerCase();
 
       const matchesSearch =
-        event.id.toLowerCase().includes(searchText) ||
-        event.participant.toLowerCase().includes(searchText) ||
-        event.trialId.toLowerCase().includes(searchText) ||
-        event.trialTitle.toLowerCase().includes(searchText) ||
-        event.event.toLowerCase().includes(searchText) ||
-        event.site.toLowerCase().includes(searchText) ||
-        event.reportedBy.toLowerCase().includes(searchText)
+        String(event.id)
+          .toLowerCase()
+          .includes(searchText) ||
+        participantCode
+          .toLowerCase()
+          .includes(searchText) ||
+        participantName
+          .toLowerCase()
+          .includes(searchText) ||
+        String(event.trial_id)
+          .toLowerCase()
+          .includes(searchText) ||
+        trialName
+          .toLowerCase()
+          .includes(searchText) ||
+        eventTerm
+          .toLowerCase()
+          .includes(searchText);
 
       const matchesSeverity =
         severityFilter === "All" ||
-        event.severity === severityFilter
+        event.severity === severityFilter;
 
       const matchesStatus =
         statusFilter === "All" ||
-        event.status === statusFilter
+        getEventStatus(event) ===
+          statusFilter;
 
       const matchesSeriousness =
         seriousnessFilter === "All" ||
-        event.seriousness === seriousnessFilter
+        event.seriousness ===
+          seriousnessFilter;
 
       return (
         matchesSearch &&
         matchesSeverity &&
         matchesStatus &&
         matchesSeriousness
-      )
-    })
+      );
+    });
   }, [
+    adverseEvents,
+    participants,
+    trials,
     search,
     severityFilter,
     statusFilter,
     seriousnessFilter,
-  ])
+  ]);
 
-  const totalEvents = adverseEvents.length
+  // --------------------------------------------------
+  // STATS
+  // --------------------------------------------------
 
-  const seriousEvents = adverseEvents.filter(
-    (event) => event.seriousness === "Serious"
-  ).length
+  const totalEvents =
+    adverseEvents.length;
 
-  const underReview = adverseEvents.filter(
-    (event) => event.status === "Under Review"
-  ).length
+  const seriousEvents =
+    adverseEvents.filter(
+      (event) =>
+        event.seriousness === "Serious"
+    ).length;
 
-  const resolvedEvents = adverseEvents.filter(
-    (event) =>
-      event.status === "Closed" ||
-      event.outcome === "Recovered"
-  ).length
+  const underReview =
+    adverseEvents.filter(
+      (event) =>
+        getEventStatus(event) ===
+        "Under Review"
+    ).length;
 
-  const severeEvents = adverseEvents.filter(
-    (event) => event.severity === "Severe"
-  ).length
+  const resolvedEvents =
+    adverseEvents.filter(
+      (event) =>
+        getEventStatus(event) ===
+          "Closed" ||
+        event.outcome === "Recovered"
+    ).length;
 
-  const mildEvents = adverseEvents.filter(
-    (event) => event.severity === "Mild"
-  ).length
+  const severeEvents =
+    adverseEvents.filter(
+      (event) =>
+        event.severity === "Severe"
+    ).length;
 
-  const moderateEvents = adverseEvents.filter(
-    (event) => event.severity === "Moderate"
-  ).length
+  const mildEvents =
+    adverseEvents.filter(
+      (event) =>
+        event.severity === "Mild"
+    ).length;
+
+  const moderateEvents =
+    adverseEvents.filter(
+      (event) =>
+        event.severity === "Moderate"
+    ).length;
+
+  const saeReviewEvents =
+    adverseEvents.filter(
+      (event) =>
+        getEventStatus(event) ===
+        "SAE Review"
+    ).length;
+
+  const reportedEvents =
+    adverseEvents.filter(
+      (event) =>
+        getEventStatus(event) ===
+        "Reported"
+    ).length;
+
+  // --------------------------------------------------
+  // MODAL
+  // --------------------------------------------------
+
+  const openCreateModal = () => {
+    setEditingEvent(null);
+    setForm(emptyForm);
+    setError("");
+    setShowModal(true);
+  };
+
+  const openEditModal = (event) => {
+    setEditingEvent(event);
+
+    setForm({
+      trial_id: event.trial_id || "",
+      participant_id:
+        event.participant_id || "",
+      event_term:
+        event.event_term || "",
+      severity:
+        event.severity || "Mild",
+      seriousness:
+        event.seriousness ||
+        "Non-Serious",
+      onset_date:
+        getDateInputValue(
+          event.onset_date
+        ),
+      outcome:
+        event.outcome ||
+        "Recovering",
+      description:
+        event.description || "",
+    });
+
+    setError("");
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    if (saving) return;
+
+    setShowModal(false);
+    setEditingEvent(null);
+    setForm(emptyForm);
+    setError("");
+  };
+
+  const handleChange = (event) => {
+    const { name, value } =
+      event.target;
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  // --------------------------------------------------
+  // CREATE / UPDATE
+  // --------------------------------------------------
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!form.trial_id) {
+      setError(
+        "Please select a clinical trial."
+      );
+      return;
+    }
+
+    if (!form.participant_id) {
+      setError(
+        "Please select a participant."
+      );
+      return;
+    }
+
+    if (!form.event_term.trim()) {
+      setError(
+        "Please enter adverse event."
+      );
+      return;
+    }
+
+    if (!form.onset_date) {
+      setError(
+        "Please select onset date."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const payload = {
+        trial_id: Number(form.trial_id),
+        participant_id:
+          Number(form.participant_id),
+        event_term:
+          form.event_term.trim(),
+        severity: form.severity,
+        seriousness:
+          form.seriousness,
+        onset_date:
+          form.onset_date,
+        outcome:
+          form.outcome,
+        description:
+          form.description.trim() ||
+          null,
+      };
+
+      if (editingEvent) {
+        await api.put(
+          `/adverse-events/${editingEvent.id}`,
+          payload
+        );
+
+        setSuccess(
+          "Adverse event updated successfully."
+        );
+      } else {
+        await api.post(
+          "/adverse-events",
+          payload
+        );
+
+        setSuccess(
+          "Adverse event reported successfully."
+        );
+      }
+
+      await fetchAdverseEvents();
+
+      closeModal();
+
+      setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+    } catch (err) {
+      console.error(
+        "Save Adverse Event Error:",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to save adverse event."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // --------------------------------------------------
+  // DELETE
+  // --------------------------------------------------
+
+  const handleDelete = async (id) => {
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this adverse event?"
+      );
+
+    if (!confirmed) return;
+
+    try {
+      setError("");
+
+      await api.delete(
+        `/adverse-events/${id}`
+      );
+
+      setAdverseEvents((previous) =>
+        previous.filter(
+          (event) =>
+            Number(event.id) !==
+            Number(id)
+        )
+      );
+
+      setSuccess(
+        "Adverse event deleted successfully."
+      );
+
+      setTimeout(() => {
+        setSuccess("");
+      }, 3000);
+    } catch (err) {
+      console.error(
+        "Delete Adverse Event Error:",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to delete adverse event."
+      );
+    }
+  };
+
+  // --------------------------------------------------
+  // VIEW
+  // --------------------------------------------------
+
+  const handleView = (event) => {
+    const participantName =
+      getParticipantName(
+        event.participant_id
+      );
+
+    const trialName =
+      getTrialName(
+        event.trial_id
+      );
+
+    window.alert(
+      `Adverse Event Details\n\n` +
+        `AE ID: AE-${String(
+          event.id
+        ).padStart(5, "0")}\n` +
+        `Participant: ${participantName}\n` +
+        `Trial: ${trialName}\n` +
+        `Event: ${event.event_term}\n` +
+        `Severity: ${event.severity}\n` +
+        `Seriousness: ${event.seriousness}\n` +
+        `Onset: ${formatDate(
+          event.onset_date
+        )}\n` +
+        `Outcome: ${
+          event.outcome || "-"
+        }\n` +
+        `Description: ${
+          event.description ||
+          "No description"
+        }`
+    );
+  };
 
   return (
     <div className="space-y-6">
+
+      {/* SUCCESS */}
+      {success && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          {success}
+        </div>
+      )}
+
+      {/* ERROR */}
+      {error && !showModal && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* HEADER */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -305,7 +705,10 @@ function Pharmacovigilance() {
           </p>
         </div>
 
-        <button className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700">
+        <button
+          onClick={openCreateModal}
+          className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+        >
           <Plus size={18} />
           Report Adverse Event
         </button>
@@ -317,7 +720,6 @@ function Pharmacovigilance() {
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Total AE
@@ -331,13 +733,11 @@ function Pharmacovigilance() {
             <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
               <Activity size={22} />
             </div>
-
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Serious AE / SAE
@@ -351,13 +751,11 @@ function Pharmacovigilance() {
             <div className="rounded-lg bg-red-50 p-3 text-red-600">
               <Siren size={22} />
             </div>
-
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Under Review
@@ -371,13 +769,11 @@ function Pharmacovigilance() {
             <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
               <Clock3 size={22} />
             </div>
-
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Severe Events
@@ -391,13 +787,11 @@ function Pharmacovigilance() {
             <div className="rounded-lg bg-orange-50 p-3 text-orange-600">
               <AlertTriangle size={22} />
             </div>
-
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm text-slate-500">
                 Recovered / Closed
@@ -411,7 +805,6 @@ function Pharmacovigilance() {
             <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
               <CheckCircle2 size={22} />
             </div>
-
           </div>
         </div>
 
@@ -444,86 +837,62 @@ function Pharmacovigilance() {
 
           <div className="mt-6 space-y-5">
 
-            <div>
+            {[
+              {
+                label: "Mild",
+                count: mildEvents,
+                text: "text-emerald-600",
+                bar: "bg-emerald-500",
+              },
+              {
+                label: "Moderate",
+                count: moderateEvents,
+                text: "text-amber-600",
+                bar: "bg-amber-500",
+              },
+              {
+                label: "Severe",
+                count: severeEvents,
+                text: "text-red-600",
+                bar: "bg-red-500",
+              },
+            ].map((item) => (
+              <div key={item.label}>
 
-              <div className="mb-2 flex justify-between text-sm">
+                <div className="mb-2 flex justify-between text-sm">
 
-                <span className="font-medium text-slate-700">
-                  Mild
-                </span>
+                  <span className="font-medium text-slate-700">
+                    {item.label}
+                  </span>
 
-                <span className="font-semibold text-emerald-600">
-                  {mildEvents}
-                </span>
+                  <span
+                    className={`font-semibold ${item.text}`}
+                  >
+                    {item.count}
+                  </span>
 
-              </div>
+                </div>
 
-              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
 
-                <div
-                  className="h-full rounded-full bg-emerald-500"
-                  style={{
-                    width: `${(mildEvents / totalEvents) * 100}%`,
-                  }}
-                />
+                  <div
+                    className={`h-full rounded-full ${item.bar}`}
+                    style={{
+                      width:
+                        totalEvents > 0
+                          ? `${
+                              (item.count /
+                                totalEvents) *
+                              100
+                            }%`
+                          : "0%",
+                    }}
+                  />
 
-              </div>
-
-            </div>
-
-            <div>
-
-              <div className="mb-2 flex justify-between text-sm">
-
-                <span className="font-medium text-slate-700">
-                  Moderate
-                </span>
-
-                <span className="font-semibold text-amber-600">
-                  {moderateEvents}
-                </span>
-
-              </div>
-
-              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-
-                <div
-                  className="h-full rounded-full bg-amber-500"
-                  style={{
-                    width: `${(moderateEvents / totalEvents) * 100}%`,
-                  }}
-                />
-
-              </div>
-
-            </div>
-
-            <div>
-
-              <div className="mb-2 flex justify-between text-sm">
-
-                <span className="font-medium text-slate-700">
-                  Severe
-                </span>
-
-                <span className="font-semibold text-red-600">
-                  {severeEvents}
-                </span>
+                </div>
 
               </div>
-
-              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-
-                <div
-                  className="h-full rounded-full bg-red-500"
-                  style={{
-                    width: `${(severeEvents / totalEvents) * 100}%`,
-                  }}
-                />
-
-              </div>
-
-            </div>
+            ))}
 
           </div>
 
@@ -574,11 +943,7 @@ function Pharmacovigilance() {
               </p>
 
               <p className="mt-1 text-2xl font-bold text-orange-600">
-                {
-                  adverseEvents.filter(
-                    (event) => event.status === "SAE Review"
-                  ).length
-                }
+                {saeReviewEvents}
               </p>
 
             </div>
@@ -590,11 +955,7 @@ function Pharmacovigilance() {
               </p>
 
               <p className="mt-1 text-2xl font-bold text-purple-600">
-                {
-                  adverseEvents.filter(
-                    (event) => event.status === "Reported"
-                  ).length
-                }
+                {reportedEvents}
               </p>
 
             </div>
@@ -613,8 +974,7 @@ function Pharmacovigilance() {
         </h2>
 
         <p className="mt-1 text-xs text-slate-500">
-          Track an adverse event from initial reporting to final
-          outcome.
+          Track an adverse event from initial reporting to final outcome.
         </p>
 
         <div className="mt-6 grid gap-3 md:grid-cols-5">
@@ -642,7 +1002,7 @@ function Pharmacovigilance() {
             },
           ].map((step, index) => {
 
-            const Icon = step.icon
+            const Icon = step.icon;
 
             return (
               <div
@@ -656,18 +1016,14 @@ function Pharmacovigilance() {
                     <Icon size={18} />
                   </div>
 
-                  <div>
-
-                    <p className="text-sm font-semibold text-slate-800">
-                      {index + 1}. {step.title}
-                    </p>
-
-                  </div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {index + 1}. {step.title}
+                  </p>
 
                 </div>
 
               </div>
-            )
+            );
           })}
 
         </div>
@@ -679,7 +1035,7 @@ function Pharmacovigilance() {
 
         <div className="grid gap-3 lg:grid-cols-4">
 
-          <div className="relative lg:col-span-1">
+          <div className="relative">
 
             <Search
               size={18}
@@ -705,7 +1061,6 @@ function Pharmacovigilance() {
             }
             className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-500"
           >
-
             <option value="All">
               All Severity
             </option>
@@ -721,7 +1076,6 @@ function Pharmacovigilance() {
             <option value="Severe">
               Severe
             </option>
-
           </select>
 
           <select
@@ -731,7 +1085,6 @@ function Pharmacovigilance() {
             }
             className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-500"
           >
-
             <option value="All">
               All Seriousness
             </option>
@@ -743,7 +1096,6 @@ function Pharmacovigilance() {
             <option value="Non-Serious">
               Non-Serious
             </option>
-
           </select>
 
           <select
@@ -753,7 +1105,6 @@ function Pharmacovigilance() {
             }
             className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-500"
           >
-
             <option value="All">
               All Status
             </option>
@@ -773,7 +1124,6 @@ function Pharmacovigilance() {
             <option value="Closed">
               Closed
             </option>
-
           </select>
 
         </div>
@@ -801,231 +1151,299 @@ function Pharmacovigilance() {
 
         <div className="overflow-x-auto">
 
-          <table className="w-full min-w-[1550px] text-left">
+          {loading ? (
+            <div className="px-6 py-16 text-center">
 
-            <thead className="bg-slate-50">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-red-200 border-t-red-600" />
 
-              <tr className="border-b border-slate-200">
+              <p className="mt-3 text-sm text-slate-500">
+                Loading adverse events...
+              </p>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  AE Record
-                </th>
+            </div>
+          ) : (
+            <table className="w-full min-w-[1400px] text-left">
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Participant
-                </th>
+              <thead className="bg-slate-50">
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Trial
-                </th>
+                <tr className="border-b border-slate-200">
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Event
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    AE Record
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Severity
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Participant
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Seriousness
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Trial
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Causality
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Event
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Outcome
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Severity
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Status
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Seriousness
+                  </th>
 
-                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Action
-                </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Outcome
+                  </th>
 
-              </tr>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Status
+                  </th>
 
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-
-              {filteredEvents.map((event) => (
-
-                <tr
-                  key={event.id}
-                  className="transition hover:bg-slate-50"
-                >
-
-                  {/* AE RECORD */}
-                  <td className="px-5 py-4">
-
-                    <p className="text-xs font-semibold text-red-600">
-                      {event.id}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Reported {event.reportedDate}
-                    </p>
-
-                  </td>
-
-                  {/* PARTICIPANT */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-2">
-
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                        <UserRound size={15} />
-                      </div>
-
-                      <div>
-
-                        <p className="text-sm font-semibold text-slate-800">
-                          {event.participant}
-                        </p>
-
-                        <p className="text-xs text-slate-500">
-                          {event.site}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  </td>
-
-                  {/* TRIAL */}
-                  <td className="max-w-[250px] px-5 py-4">
-
-                    <p className="text-xs font-semibold text-blue-600">
-                      {event.trialId}
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-slate-800">
-                      {event.trialTitle}
-                    </p>
-
-                  </td>
-
-                  {/* EVENT */}
-                  <td className="px-5 py-4">
-
-                    <p className="text-sm font-semibold text-slate-800">
-                      {event.event}
-                    </p>
-
-                    <div className="mt-1 flex items-center gap-1 text-xs text-slate-400">
-
-                      <CalendarDays size={12} />
-
-                      Onset: {event.onsetDate}
-
-                    </div>
-
-                  </td>
-
-                  {/* SEVERITY */}
-                  <td className="px-5 py-4">
-                    <SeverityBadge
-                      severity={event.severity}
-                    />
-                  </td>
-
-                  {/* SERIOUSNESS */}
-                  <td className="px-5 py-4">
-                    <SeriousnessBadge
-                      seriousness={event.seriousness}
-                    />
-                  </td>
-
-                  {/* CAUSALITY */}
-                  <td className="px-5 py-4">
-
-                    <span className="text-sm font-medium text-slate-700">
-                      {event.causality}
-                    </span>
-
-                  </td>
-
-                  {/* OUTCOME */}
-                  <td className="px-5 py-4">
-
-                    <p className="text-sm font-medium text-slate-700">
-                      {event.outcome}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      {event.action}
-                    </p>
-
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="px-5 py-4">
-
-                    <StatusBadge
-                      status={event.status}
-                    />
-
-                  </td>
-
-                  {/* ACTION */}
-                  <td className="px-5 py-4">
-
-                    <div className="flex items-center gap-1">
-
-                      <button
-                        title="View Adverse Event"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-                      >
-                        <Eye size={17} />
-                      </button>
-
-                      <button
-                        title="More Actions"
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
-                      >
-                        <MoreHorizontal size={17} />
-                      </button>
-
-                    </div>
-
-                  </td>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Action
+                  </th>
 
                 </tr>
 
-              ))}
+              </thead>
 
-            </tbody>
+              <tbody className="divide-y divide-slate-100">
 
-          </table>
+                {filteredEvents.map((event) => {
+
+                  const participantCode =
+                    getParticipantCode(
+                      event.participant_id
+                    );
+
+                  const participantName =
+                    getParticipantName(
+                      event.participant_id
+                    );
+
+                  const trialName =
+                    getTrialName(
+                      event.trial_id
+                    );
+
+                  return (
+                    <tr
+                      key={event.id}
+                      className="transition hover:bg-slate-50"
+                    >
+
+                      {/* AE RECORD */}
+                      <td className="px-5 py-4">
+
+                        <p className="text-xs font-semibold text-red-600">
+                          AE-
+                          {String(event.id).padStart(
+                            5,
+                            "0"
+                          )}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          Reported{" "}
+                          {formatDate(
+                            event.reported_at
+                          )}
+                        </p>
+
+                      </td>
+
+                      {/* PARTICIPANT */}
+                      <td className="px-5 py-4">
+
+                        <div className="flex items-center gap-2">
+
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                            <UserRound size={15} />
+                          </div>
+
+                          <div>
+
+                            <p className="text-sm font-semibold text-slate-800">
+                              {participantName}
+                            </p>
+
+                            <p className="text-xs text-slate-500">
+                              {participantCode}
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                      </td>
+
+                      {/* TRIAL */}
+                      <td className="max-w-[250px] px-5 py-4">
+
+                        <p className="text-xs font-semibold text-blue-600">
+                          TRIAL-
+                          {String(
+                            event.trial_id
+                          ).padStart(3, "0")}
+                        </p>
+
+                        <p className="mt-1 text-sm font-semibold text-slate-800">
+                          {trialName}
+                        </p>
+
+                      </td>
+
+                      {/* EVENT */}
+                      <td className="px-5 py-4">
+
+                        <p className="text-sm font-semibold text-slate-800">
+                          {event.event_term}
+                        </p>
+
+                        <div className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+
+                          <CalendarDays size={12} />
+
+                          Onset:{" "}
+                          {formatDate(
+                            event.onset_date
+                          )}
+
+                        </div>
+
+                      </td>
+
+                      {/* SEVERITY */}
+                      <td className="px-5 py-4">
+                        <SeverityBadge
+                          severity={
+                            event.severity
+                          }
+                        />
+                      </td>
+
+                      {/* SERIOUSNESS */}
+                      <td className="px-5 py-4">
+                        <SeriousnessBadge
+                          seriousness={
+                            event.seriousness
+                          }
+                        />
+                      </td>
+
+                      {/* OUTCOME */}
+                      <td className="px-5 py-4">
+
+                        <p className="text-sm font-medium text-slate-700">
+                          {event.outcome ||
+                            "-"}
+                        </p>
+
+                        <p className="mt-1 max-w-xs text-xs text-slate-400">
+                          {event.description ||
+                            "No description"}
+                        </p>
+
+                      </td>
+
+                      {/* STATUS */}
+                      <td className="px-5 py-4">
+
+                        <StatusBadge
+                          status={getEventStatus(
+                            event
+                          )}
+                        />
+
+                      </td>
+
+                      {/* ACTION */}
+                      <td className="px-5 py-4">
+
+                        <div className="flex items-center gap-1">
+
+                          <button
+                            onClick={() =>
+                              handleView(event)
+                            }
+                            title="View Adverse Event"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Eye size={17} />
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              openEditModal(
+                                event
+                              )
+                            }
+                            title="Edit Adverse Event"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-amber-50 hover:text-amber-600"
+                          >
+                            <Pencil
+                              size={17}
+                            />
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleDelete(
+                                event.id
+                              )
+                            }
+                            title="Delete Adverse Event"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2
+                              size={17}
+                            />
+                          </button>
+
+                          <button
+                            title="More Actions"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
+                          >
+                            <MoreHorizontal
+                              size={17}
+                            />
+                          </button>
+
+                        </div>
+
+                      </td>
+
+                    </tr>
+                  );
+                })}
+
+              </tbody>
+
+            </table>
+          )}
 
         </div>
 
-        {filteredEvents.length === 0 && (
+        {!loading &&
+          filteredEvents.length === 0 && (
+            <div className="px-6 py-16 text-center">
 
-          <div className="px-6 py-16 text-center">
+              <ShieldAlert
+                size={40}
+                className="mx-auto text-slate-300"
+              />
 
-            <ShieldAlert
-              size={40}
-              className="mx-auto text-slate-300"
-            />
+              <h3 className="mt-3 font-semibold text-slate-900">
+                No adverse events found
+              </h3>
 
-            <h3 className="mt-3 font-semibold text-slate-900">
-              No adverse events found
-            </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Try changing your search or filters.
+              </p>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Try changing your search or filters.
-            </p>
-
-          </div>
-
-        )}
+            </div>
+          )}
 
       </div>
 
@@ -1057,16 +1475,324 @@ function Pharmacovigilance() {
 
       </div>
 
+      {/* CREATE / EDIT MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+
+            {/* MODAL HEADER */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+
+              <div>
+
+                <h2 className="text-lg font-bold text-slate-900">
+                  {editingEvent
+                    ? "Edit Adverse Event"
+                    : "Report Adverse Event"}
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Record participant safety information.
+                </p>
+
+              </div>
+
+              <button
+                onClick={closeModal}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            {/* FORM */}
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5 p-6"
+            >
+
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                {/* TRIAL */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Clinical Trial *
+                  </label>
+
+                  <select
+                    name="trial_id"
+                    value={form.trial_id}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                  >
+
+                    <option value="">
+                      Select Trial
+                    </option>
+
+                    {trials.map((trial) => (
+                      <option
+                        key={trial.id}
+                        value={trial.id}
+                      >
+                        {trial.title ||
+                          trial.name ||
+                          `Trial #${trial.id}`}
+                      </option>
+                    ))}
+
+                  </select>
+                </div>
+
+                {/* PARTICIPANT */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Participant *
+                  </label>
+
+                  <select
+                    name="participant_id"
+                    value={
+                      form.participant_id
+                    }
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                  >
+
+                    <option value="">
+                      Select Participant
+                    </option>
+
+                    {participants.map(
+                      (participant) => (
+                        <option
+                          key={
+                            participant.id
+                          }
+                          value={
+                            participant.id
+                          }
+                        >
+                          {participant.participant_code ||
+                            `Participant #${participant.id}`}
+                        </option>
+                      )
+                    )}
+
+                  </select>
+                </div>
+
+                {/* EVENT */}
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Adverse Event *
+                  </label>
+
+                  <input
+                    type="text"
+                    name="event_term"
+                    value={
+                      form.event_term
+                    }
+                    onChange={handleChange}
+                    placeholder="e.g. Nausea, Headache, Skin Rash"
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                  />
+                </div>
+
+                {/* SEVERITY */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Severity *
+                  </label>
+
+                  <select
+                    name="severity"
+                    value={
+                      form.severity
+                    }
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                  >
+
+                    <option value="Mild">
+                      Mild
+                    </option>
+
+                    <option value="Moderate">
+                      Moderate
+                    </option>
+
+                    <option value="Severe">
+                      Severe
+                    </option>
+
+                  </select>
+                </div>
+
+                {/* SERIOUSNESS */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Seriousness *
+                  </label>
+
+                  <select
+                    name="seriousness"
+                    value={
+                      form.seriousness
+                    }
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                  >
+
+                    <option value="Non-Serious">
+                      Non-Serious
+                    </option>
+
+                    <option value="Serious">
+                      Serious
+                    </option>
+
+                  </select>
+                </div>
+
+                {/* ONSET DATE */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Onset Date *
+                  </label>
+
+                  <input
+                    type="date"
+                    name="onset_date"
+                    value={
+                      form.onset_date
+                    }
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                  />
+                </div>
+
+                {/* OUTCOME */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Outcome *
+                  </label>
+
+                  <select
+                    name="outcome"
+                    value={
+                      form.outcome
+                    }
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                  >
+
+                    <option value="Recovering">
+                      Recovering
+                    </option>
+
+                    <option value="Recovered">
+                      Recovered
+                    </option>
+
+                    <option value="Not Recovered">
+                      Not Recovered
+                    </option>
+
+                    <option value="Fatal">
+                      Fatal
+                    </option>
+
+                  </select>
+                </div>
+
+              </div>
+
+              {/* DESCRIPTION */}
+              <div>
+
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Description
+                </label>
+
+                <textarea
+                  name="description"
+                  value={
+                    form.description
+                  }
+                  onChange={handleChange}
+                  rows={4}
+                  placeholder="Describe the adverse event, clinical observations and relevant details..."
+                  className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500"
+                />
+
+              </div>
+
+              {/* BUTTONS */}
+              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={saving}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+
+                  {saving ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldAlert
+                        size={17}
+                      />
+
+                      {editingEvent
+                        ? "Update Event"
+                        : "Report Event"}
+                    </>
+                  )}
+
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
-  )
+  );
 }
 
-/*
-  Small reusable icon wrapper.
-  This avoids importing another component just for the workflow.
-*/
 function ClipboardCheckIcon(props) {
-  return <FileText {...props} />
+  return <FileText {...props} />;
 }
 
-export default Pharmacovigilance
+export default Pharmacovigilance;

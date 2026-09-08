@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Radio,
   Search,
@@ -14,68 +14,7 @@ import {
   Activity,
 } from "lucide-react"
 
-const checkInRecords = [
-  {
-    id: 1,
-    rfidUid: "A37B921F",
-    participantId: "P-1024",
-    trialId: "TRIAL-001",
-    trialTitle: "Ayurvedic Intervention for Type 2 Diabetes",
-    visit: "Visit 03",
-    site: "AIIA New Delhi",
-    device: "CTMS-DEVICE-01",
-    checkInTime: "04 Sep 2026, 09:42 AM",
-    status: "CHECKED_IN",
-  },
-  {
-    id: 2,
-    rfidUid: "B82C4A10",
-    participantId: "P-1031",
-    trialId: "TRIAL-002",
-    trialTitle: "Ayurvedic Therapy for Chronic Arthritis",
-    visit: "Visit 02",
-    site: "AIIA Ahmedabad",
-    device: "CTMS-DEVICE-02",
-    checkInTime: "04 Sep 2026, 09:31 AM",
-    status: "CHECKED_IN",
-  },
-  {
-    id: 3,
-    rfidUid: "C91D72AA",
-    participantId: "P-1045",
-    trialId: "TRIAL-001",
-    trialTitle: "Ayurvedic Intervention for Type 2 Diabetes",
-    visit: "Visit 04",
-    site: "AIIA New Delhi",
-    device: "CTMS-DEVICE-01",
-    checkInTime: "04 Sep 2026, 09:18 AM",
-    status: "CHECKED_IN",
-  },
-  {
-    id: 4,
-    rfidUid: "D44E90BC",
-    participantId: "P-1078",
-    trialId: "TRIAL-003",
-    trialTitle: "Herbal Support in Migraine Management",
-    visit: "Visit 01",
-    site: "AIIA Jaipur",
-    device: "CTMS-DEVICE-03",
-    checkInTime: "04 Sep 2026, 08:55 AM",
-    status: "CHECKED_IN",
-  },
-  {
-    id: 5,
-    rfidUid: "INVALID001",
-    participantId: "Unknown",
-    trialId: "-",
-    trialTitle: "No matching participant",
-    visit: "-",
-    site: "AIIA New Delhi",
-    device: "CTMS-DEVICE-01",
-    checkInTime: "04 Sep 2026, 08:41 AM",
-    status: "BLOCKED",
-  },
-]
+import api from "../services/api"
 
 function StatusBadge({ status }) {
   if (status === "CHECKED_IN") {
@@ -100,68 +39,367 @@ function RFIDCheckIn() {
   const [search, setSearch] = useState("")
   const [scanResult, setScanResult] = useState(null)
 
-  const filteredRecords = useMemo(() => {
-    const value = search.toLowerCase()
+  const [checkInRecords, setCheckInRecords] = useState([])
+  const [rfidCards, setRfidCards] = useState([])
+  const [participants, setParticipants] = useState([])
 
-    return checkInRecords.filter(
-      (record) =>
-        record.rfidUid.toLowerCase().includes(value) ||
-        record.participantId.toLowerCase().includes(value) ||
-        record.trialId.toLowerCase().includes(value) ||
-        record.site.toLowerCase().includes(value)
+  const [loading, setLoading] = useState(true)
+  const [scanning, setScanning] = useState(false)
+
+  const [error, setError] = useState("")
+
+  // ---------------------------------------
+  // FETCH RFID DATA
+  // ---------------------------------------
+  const fetchRFIDData = async () => {
+    try {
+      setLoading(true)
+      setError("")
+
+      const [checkinsResponse, cardsResponse, participantsResponse] =
+        await Promise.all([
+          api.get("/rfid/checkins"),
+          api.get("/rfid/cards"),
+          api.get("/participants"),
+        ])
+
+      const checkins =
+        checkinsResponse.data?.checkins ||
+        checkinsResponse.data?.records ||
+        []
+
+      const cards =
+        cardsResponse.data?.cards ||
+        []
+
+      const participantList =
+        participantsResponse.data?.participants ||
+        []
+
+      setCheckInRecords(checkins)
+      setRfidCards(cards)
+      setParticipants(participantList)
+    } catch (err) {
+      console.error("RFID Data Error:", err)
+
+      setError(
+        err.response?.data?.message ||
+          "Failed to load RFID data from backend."
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRFIDData()
+  }, [])
+
+  // ---------------------------------------
+  // PARTICIPANT MAP
+  // ---------------------------------------
+  const participantMap = useMemo(() => {
+    const map = {}
+
+    participants.forEach((participant) => {
+      map[participant.id] = participant
+    })
+
+    return map
+  }, [participants])
+
+  // ---------------------------------------
+  // FORMAT DATE
+  // ---------------------------------------
+  const formatDateTime = (dateValue) => {
+    if (!dateValue) return "-"
+
+    const date = new Date(dateValue)
+
+    if (Number.isNaN(date.getTime())) {
+      return dateValue
+    }
+
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  // ---------------------------------------
+  // FORMAT PARTICIPANT
+  // ---------------------------------------
+  const getParticipantCode = (participantId) => {
+    const participant = participantMap[participantId]
+
+    if (!participant) {
+      return participantId ? `Participant #${participantId}` : "Unknown"
+    }
+
+    return (
+      participant.participant_code ||
+      participant.participantCode ||
+      `Participant #${participant.id}`
     )
-  }, [search])
+  }
 
+  // ---------------------------------------
+  // GET TRIAL / VISIT INFO
+  // ---------------------------------------
+  const getTrialId = (record) => {
+    return record.trial_id || record.trialId || "-"
+  }
+
+  const getVisitName = (record) => {
+    return (
+      record.visit_name ||
+      record.visitName ||
+      record.visit_id ||
+      "-"
+    )
+  }
+
+  // ---------------------------------------
+  // FILTER RECORDS
+  // ---------------------------------------
+  const filteredRecords = useMemo(() => {
+    const value = search.trim().toLowerCase()
+
+    if (!value) {
+      return checkInRecords
+    }
+
+    return checkInRecords.filter((record) => {
+      const uid = String(
+        record.rfid_uid ||
+          record.rfidUid ||
+          ""
+      ).toLowerCase()
+
+      const participant = String(
+        getParticipantCode(record.participant_id)
+      ).toLowerCase()
+
+      const trial = String(
+        getTrialId(record)
+      ).toLowerCase()
+
+      const device = String(
+        record.device_id ||
+          record.device ||
+          ""
+      ).toLowerCase()
+
+      return (
+        uid.includes(value) ||
+        participant.includes(value) ||
+        trial.includes(value) ||
+        device.includes(value)
+      )
+    })
+  }, [search, checkInRecords, participantMap])
+
+  // ---------------------------------------
+  // STATS
+  // ---------------------------------------
   const totalCheckIns = checkInRecords.filter(
-    (record) => record.status === "CHECKED_IN"
+    (record) =>
+      String(record.status || "").toUpperCase() ===
+      "CHECKED_IN"
   ).length
 
   const blockedAttempts = checkInRecords.filter(
-    (record) => record.status === "BLOCKED"
+    (record) =>
+      String(record.status || "").toUpperCase() ===
+      "BLOCKED"
   ).length
 
-  const activeDevices = 3
+  const activeDevices = useMemo(() => {
+    const devices = new Set()
 
-  const handleScan = () => {
+    checkInRecords.forEach((record) => {
+      const device =
+        record.device_id ||
+        record.device
+
+      if (device) {
+        devices.add(device)
+      }
+    })
+
+    return devices.size
+  }, [checkInRecords])
+
+  // ---------------------------------------
+  // RFID SCAN
+  // ---------------------------------------
+  const handleScan = async () => {
     const uid = rfidUid.trim().toUpperCase()
 
     if (!uid) {
       setScanResult({
         type: "error",
         title: "RFID UID Required",
-        message: "Please enter an RFID UID to simulate a card scan.",
+        message:
+          "Please enter an RFID UID to simulate a card scan.",
       })
+
       return
     }
 
-    const participant = checkInRecords.find(
-      (record) => record.rfidUid === uid
-    )
+    try {
+      setScanning(true)
+      setScanResult(null)
+      setError("")
 
-    if (!participant || participant.status === "BLOCKED") {
+      /*
+        Backend endpoint:
+        POST /api/rfid/checkin
+
+        Body:
+        {
+          rfid_uid: "A37B921F",
+          device_id: "CTMS-DEVICE-01"
+        }
+      */
+
+      const response = await api.post("/rfid/checkin", {
+        rfid_uid: uid,
+        device_id: "CTMS-DEVICE-01",
+      })
+
+      const data = response.data || {}
+
+      if (data.success === false) {
+        setScanResult({
+          type: "error",
+          title: "Check-in Blocked",
+          message:
+            data.message ||
+            "No valid participant or scheduled visit was found.",
+          uid,
+        })
+
+        await fetchRFIDData()
+
+        return
+      }
+
+      const participantId =
+        data.participant_id ||
+        data.participantId ||
+        data.checkin?.participant_id
+
+      const trialId =
+        data.trial_id ||
+        data.trialId ||
+        data.checkin?.trial_id
+
+      const visitId =
+        data.visit_id ||
+        data.visitId ||
+        data.checkin?.visit_id
+
+      const card = rfidCards.find(
+        (item) =>
+          String(
+            item.rfid_uid ||
+              item.rfidUid ||
+              ""
+          ).toUpperCase() === uid
+      )
+
+      const participant =
+        participantMap[participantId] ||
+        participantMap[card?.participant_id]
+
+      setScanResult({
+        type: "success",
+        title: "Participant Checked In",
+        message:
+          data.message ||
+          "RFID successfully matched and check-in recorded.",
+        uid,
+
+        participant: {
+          participantId:
+            participant?.participant_code ||
+            participant?.participantCode ||
+            participantId ||
+            "Unknown",
+
+          trialId:
+            trialId ||
+            "Not assigned",
+
+          visit:
+            data.visit_name ||
+            data.visitName ||
+            visitId ||
+            "Scheduled Visit",
+
+          site:
+            participant?.site_id
+              ? `Site #${participant.site_id}`
+              : "Clinical Trial Site",
+        },
+      })
+
+      await fetchRFIDData()
+    } catch (err) {
+      console.error("RFID Check-in Error:", err)
+
+      const message =
+        err.response?.data?.message ||
+        "RFID check-in failed. Please verify the RFID card."
+
       setScanResult({
         type: "error",
         title: "Check-in Blocked",
-        message:
-          "No valid participant or scheduled visit was found for this RFID card.",
+        message,
         uid,
       })
-      return
-    }
 
-    setScanResult({
-      type: "success",
-      title: "Participant Checked In",
-      message: "RFID successfully matched with participant record.",
-      uid,
-      participant,
-    })
+      await fetchRFIDData()
+    } finally {
+      setScanning(false)
+    }
   }
 
+  // ---------------------------------------
+  // DEMO RFID BUTTON
+  // ---------------------------------------
   const simulateCard = (uid) => {
     setRfidUid(uid)
     setScanResult(null)
   }
+
+  // ---------------------------------------
+  // REGISTERED RFID CARDS
+  // ---------------------------------------
+  const demoCards = useMemo(() => {
+    const backendCards = rfidCards
+      .map(
+        (card) =>
+          card.rfid_uid ||
+          card.rfidUid
+      )
+      .filter(Boolean)
+
+    if (backendCards.length > 0) {
+      return backendCards.slice(0, 4)
+    }
+
+    return [
+      "A37B921F",
+      "B82C4A10",
+      "C91D72AA",
+      "INVALID001",
+    ]
+  }, [rfidCards])
 
   return (
     <div className="space-y-6">
@@ -193,6 +431,13 @@ function RFIDCheckIn() {
         </div>
       </div>
 
+      {/* ERROR */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* STATS */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -203,7 +448,7 @@ function RFIDCheckIn() {
               </p>
 
               <p className="mt-2 text-3xl font-bold text-slate-900">
-                {totalCheckIns}
+                {loading ? "..." : totalCheckIns}
               </p>
             </div>
 
@@ -221,7 +466,7 @@ function RFIDCheckIn() {
               </p>
 
               <p className="mt-2 text-3xl font-bold text-emerald-600">
-                {activeDevices}
+                {loading ? "..." : activeDevices}
               </p>
             </div>
 
@@ -239,7 +484,7 @@ function RFIDCheckIn() {
               </p>
 
               <p className="mt-2 text-3xl font-bold text-red-600">
-                {blockedAttempts}
+                {loading ? "..." : blockedAttempts}
               </p>
             </div>
 
@@ -314,16 +559,23 @@ function RFIDCheckIn() {
                 onChange={(event) =>
                   setRfidUid(event.target.value)
                 }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleScan()
+                  }
+                }}
                 placeholder="Example: A37B921F"
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm uppercase outline-none transition focus:border-indigo-500 focus:bg-white"
               />
 
               <button
                 onClick={handleScan}
-                className="flex shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                disabled={scanning}
+                className="flex shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <ScanLine size={17} />
-                Scan
+
+                {scanning ? "Checking..." : "Scan"}
               </button>
             </div>
           </div>
@@ -335,17 +587,15 @@ function RFIDCheckIn() {
             </p>
 
             <div className="flex flex-wrap gap-2">
-              {["A37B921F", "B82C4A10", "C91D72AA", "INVALID001"].map(
-                (uid) => (
-                  <button
-                    key={uid}
-                    onClick={() => simulateCard(uid)}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-                  >
-                    {uid}
-                  </button>
-                )
-              )}
+              {demoCards.map((uid) => (
+                <button
+                  key={uid}
+                  onClick={() => simulateCard(uid)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  {uid}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -575,7 +825,7 @@ function RFIDCheckIn() {
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search RFID UID, participant, trial or site..."
+            placeholder="Search RFID UID, participant, trial or device..."
             className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-indigo-500 focus:bg-white"
           />
         </div>
@@ -632,101 +882,147 @@ function RFIDCheckIn() {
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {filteredRecords.map((record) => (
-                <tr
-                  key={record.id}
-                  className="transition hover:bg-slate-50"
-                >
-                  <td className="px-5 py-4">
-                    <span className="rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700">
-                      {record.rfidUid}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                        <UserRound size={15} />
-                      </div>
-
-                      <span className="text-sm font-semibold text-slate-800">
-                        {record.participantId}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="max-w-[260px] px-5 py-4">
-                    <p className="text-xs font-semibold text-blue-600">
-                      {record.trialId}
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-slate-800">
-                      {record.trialTitle}
-                    </p>
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <CalendarDays
-                        size={15}
-                        className="text-slate-400"
-                      />
-
-                      <span className="text-sm font-medium text-slate-700">
-                        {record.visit}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <MapPin
-                        size={15}
-                        className="text-slate-400"
-                      />
-
-                      <span className="text-sm text-slate-700">
-                        {record.site}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <Smartphone
-                        size={15}
-                        className="text-slate-400"
-                      />
-
-                      <span className="text-xs font-medium text-slate-600">
-                        {record.device}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <Clock3
-                        size={15}
-                        className="text-slate-400"
-                      />
-
-                      <span className="text-sm text-slate-700">
-                        {record.checkInTime}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <StatusBadge status={record.status} />
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan="8"
+                    className="px-5 py-12 text-center text-sm text-slate-500"
+                  >
+                    Loading RFID check-in records...
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredRecords.map((record) => {
+                  const uid =
+                    record.rfid_uid ||
+                    record.rfidUid ||
+                    "-"
+
+                  const participantId =
+                    record.participant_id ||
+                    record.participantId
+
+                  const trialId =
+                    record.trial_id ||
+                    record.trialId ||
+                    "-"
+
+                  const visit =
+                    record.visit_name ||
+                    record.visitName ||
+                    record.visit_id ||
+                    "-"
+
+                  const device =
+                    record.device_id ||
+                    record.device ||
+                    "-"
+
+                  const status =
+                    record.status || "CHECKED_IN"
+
+                  return (
+                    <tr
+                      key={record.id}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-5 py-4">
+                        <span className="rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700">
+                          {uid}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                            <UserRound size={15} />
+                          </div>
+
+                          <span className="text-sm font-semibold text-slate-800">
+                            {getParticipantCode(participantId)}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="max-w-[260px] px-5 py-4">
+                        <p className="text-xs font-semibold text-blue-600">
+                          {trialId}
+                        </p>
+
+                        <p className="mt-1 text-sm font-semibold text-slate-800">
+                          Clinical Trial
+                        </p>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays
+                            size={15}
+                            className="text-slate-400"
+                          />
+
+                          <span className="text-sm font-medium text-slate-700">
+                            {visit}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <MapPin
+                            size={15}
+                            className="text-slate-400"
+                          />
+
+                          <span className="text-sm text-slate-700">
+                            {participantMap[participantId]?.site_id
+                              ? `Site #${participantMap[participantId].site_id}`
+                              : "-"}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <Smartphone
+                            size={15}
+                            className="text-slate-400"
+                          />
+
+                          <span className="text-xs font-medium text-slate-600">
+                            {device}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <Clock3
+                            size={15}
+                            className="text-slate-400"
+                          />
+
+                          <span className="text-sm text-slate-700">
+                            {formatDateTime(
+                              record.checkin_time ||
+                                record.checkInTime
+                            )}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <StatusBadge status={status} />
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
 
-        {filteredRecords.length === 0 && (
+        {!loading && filteredRecords.length === 0 && (
           <div className="px-6 py-14 text-center">
             <Radio
               size={40}
@@ -738,7 +1034,7 @@ function RFIDCheckIn() {
             </h3>
 
             <p className="mt-1 text-sm text-slate-500">
-              Try another search term.
+              Try another search term or perform an RFID scan.
             </p>
           </div>
         )}
